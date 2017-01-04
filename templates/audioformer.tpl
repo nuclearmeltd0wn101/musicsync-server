@@ -1,0 +1,1 @@
+<li class= 'playlistItem' data-type='local' data-mp3='{{path}}' data-download><a class='playlistNonSelected' href='#'>{{artist}} - {{title}}</a><a style='float: right' href='{{path}}' download="{{artist}} - {{title}}.mp3"><img src='{{res}}player/media/data/dlink.png' alt = ''/></a></li>
