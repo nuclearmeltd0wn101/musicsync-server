@@ -1,9 +1,6 @@
 # -*- coding: utf-8 -*-
 dbPath='msync.db'
-header='''{{servername}}'''
-footer='''&copy 2017 <a style="color: orange" href="https://melnikovsm.tk" target="_blank">MelnikovSM</a>. Powered by <a style="color: orange" href='https://github.com/MelnikovSM/musicsync-server' target='_blank'>MelnikovSM`s MusicSync</a>'''
-
-print('MusicSync Server version 170105\nCopyright (C) 2017 MelnikovSM')
+print('MusicSync Server version 170120\nCopyright (C) 2017 MelnikovSM')
 import pickle, os, sys, json
 import dblib
 from bottle import route, run, template, static_file, error, request, HTTPResponse
@@ -35,7 +32,8 @@ if not os.path.isfile(dbPath):
 	dblib.saveDB(dbPath, db)
 else: db=dblib.loadDB(dbPath)
 
-header=template(header, servername=db['settings']['servername'])
+footer=db['settings']['footer']
+header=template(db['settings']['header'], servername=db['settings']['servername'], static=os.path.join(db['settings']['httpdroot'], 'static'))
 if header=='': header=db['settings']['servername']
 
 
@@ -58,19 +56,31 @@ def genPlLinks(): # Generate albums selector on play pages
 
 # User Web Interface
 
+def UIgenPlayer(album=''):
+	playertpl=open(os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])),'templates/player.tpl'), 'r').read()
+	aformertpl=open(os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])),'templates/audioformer.tpl'), 'r').read()
+	a=''
+	audios,relreq=dblib.getAudios(db, album)
+	if relreq: dblib.saveDB(dbPath, db)
+	if not len(audios)==0:
+		n=1
+		for audio in audios: 
+			audioID=dblib.fname2id(db, audio['filename'])
+			a+=template(aformertpl, artist=audio['artist'], title=audio['title'], path=os.path.join(db['settings']['httpdroot'],'getAudio/', audio['filename']), id=str(audioID), num=str(n),res=os.path.join(db['settings']['httpdroot'], 'static/'), aid=audio['filename'], shr=os.path.join(db['settings']['httpdroot'], 'audio'))+'\n'
+			n+=1
+	return template(playertpl, body=a, res=os.path.join(db['settings']['httpdroot'], 'static/'))
+
 @route('/') # All audios
 def index():
 	pagetpl=open(os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])),'templates/audioscatalog.tpl'), 'r').read()
-	aformertpl=open(os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])),'templates/audioformer.tpl'), 'r').read()
-	a=''
 	audios=dblib.getAudios(db)[0]
 	if not len(audios)==0:
-		pllinks=genPlLinks()+'<br>'
-		for audioID in range(len(audios)): a+=template(aformertpl, artist=audios[audioID]['artist'], title=audios[audioID]['title'], path=os.path.join(db['settings']['httpdroot'], 'getAudio/', audios[audioID]['filename']), id=str(audioID), num=str(audioID+1),res=os.path.join(db['settings']['httpdroot'], 'static/'))+'\n'
+		pllinks=genPlLinks()
+		a=UIgenPlayer()
 	else: 
-		a+='<h2>No audios present :(</h2>'
+		a='<h2 style="color: white">No audios present :(</h2>'
 		pllinks=''
-	return template(pagetpl, pgname=(db['settings']['servername']+' - MelnikovSM`s Music Sync'), body=a, title=db['settings']['servername'],res=os.path.join(db['settings']['httpdroot'], 'static/'), pllinks=pllinks, header=header, footer=footer)
+	return template(pagetpl, pgname=(db['settings']['servername']+' - MelnikovSM`s Music Sync'), content=a, title=db['settings']['servername'],res=os.path.join(db['settings']['httpdroot'], 'static/'), pllinks=pllinks, header=header, footer=footer)
 
 	
 @route('/album') # Placeholder for case of no album specified
@@ -87,17 +97,27 @@ def albumDisplay(album):
 		audios,relreq=dblib.getAudios(db, album)
 		if relreq: dblib.saveDB(dbPath, db)
 		if not len(audios)==0:
-			n=1
-			for audio in audios: 
-				audioID=dblib.fname2id(db, audio['filename'])
-				a+=template(aformertpl, artist=audio['artist'], title=audio['title'], path=os.path.join(db['settings']['httpdroot'],'getAudio/', audio['filename']), id=str(audioID), num=str(n),res=os.path.join(db['settings']['httpdroot'], 'static/'))+'\n'
-				n+=1
-		else: a+='<h2>No audios present :(</h2>'
+			a=UIgenPlayer(album)
+		else: a+='<h2 style="color: white">No audios present :(</h2>'
 		pgn=('Album \"'+album+'\" display - '+db['settings']['servername'])
 	else:
-		a='<h2>Album \"'+album+'\" does not exist :(</h2>'
+		a='<h2 style="color: white">Album \"'+album+'\" does not exist :(</h2>'
 		pgn=('Album \"'+album+'\" not exist - '+db['settings']['servername'])
-	return template(pagetpl, pgname=pgn, body=a, title=db['settings']['servername'],res=os.path.join(db['settings']['httpdroot'], 'static/'), pllinks=genPlLinks()+'<br>', header=header, footer=footer)
+	return template(pagetpl, pgname=pgn, content=a, title=db['settings']['servername'],res=os.path.join(db['settings']['httpdroot'], 'static/'), pllinks=genPlLinks(), header=header, footer=footer)
+
+@route('/audio<aid:int>') # Shared audio display
+def audioDisplay(aid):
+	pagetpl=open(os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])),'templates/audioscatalog.tpl'), 'r').read()
+	aformertpl=open(os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])),'templates/audioformer.tpl'), 'r').read()
+	audioID=dblib.fname2id(db, aid)
+	if audioID>-1:
+		audio=db['audios'][audioID]		
+		a=template(open(os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])),'templates/player.tpl'), 'r').read(), body=template(aformertpl, artist=audio['artist'], title=audio['title'], path=os.path.join(db['settings']['httpdroot'],'getAudio/', audio['filename']), id=str(audioID), num='0',res=os.path.join(db['settings']['httpdroot'], 'static/'), aid=audio['filename'], shr=os.path.join(db['settings']['httpdroot'], 'audio'))+'\n', res=os.path.join(db['settings']['httpdroot'], 'static/'))	
+		pgn=('\"'+audio['artist']+' - '+audio['title']+'\" - '+db['settings']['servername'])
+	else:
+		pgn=('Audio not exist - '+db['settings']['servername'])
+		a='<h2 style="color: white">Audio not exist :(</h2>'
+	return template(pagetpl, pgname=pgn, content=a, title=db['settings']['servername'],res=os.path.join(db['settings']['httpdroot'], 'static/'), pllinks=genPlLinks(), header=header, footer=footer)
 
 # User API
 
@@ -120,7 +140,27 @@ def server_static(path):
 		return template(open(os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])),'static', path), 'r').read(),res=os.path.join(db['settings']['httpdroot'], 'static/player/'))
 	else: return static_file( os.path.basename(path), (os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])), 'static/', os.path.dirname(path))))
 
-@route('/api/playlist')
+def genplm3u8(audios):
+	out='#EXTM3U\n'
+	for audio in audios: out+=template('#EXTINF:,{{!name}}\n{{!url}}\n', name=audio['artist']+' - '+audio['title'], url=os.path.join(db['settings']['httpdroot'], 'getAudio', audio['filename']))
+	return out
+@route('/playlist.m3u8') #  m3u8 playlist api
+def genm3upl():
+	return genplm3u8(db['audios'])
+@route('/pl/<album>.m3u8')
+def genm3upla(album):
+	album = unquote(album)
+	if album==None: album=''
+	if (album in db['alist']) or album=='': return genplm3u8(dblib.getAudios(db, album)[0])
+	else: return HTTPResponse(status=404, body='Album not found!')
+@route('/playlist.m3u8', method='POST')
+def genm3uplalb():
+	album = request.forms.get('album')
+	if album==None: album=''
+	if (album in db['alist']) or album=='': return genplm3u8(dblib.getAudios(db, album)[0])
+	else: return HTTPResponse(status=404, body='Album not found!')	
+
+@route('/api/playlist') #  JSON playlist api
 def genPlJSON():
 	return json.dumps(db['audios'])
 @route('/api/playlist/<album>')
@@ -269,6 +309,20 @@ def renameAlbum():
 		dblib.saveDB(dbPath, db)
 		return '<h1>Success!</h1><script>location.replace(document.referrer);</script>'
 	else: return HTTPResponse(status=424, body='<h1>Request error</h1><script>location.replace(document.referrer);</script>')
+	
+@route('/control/appearance', method='POST') # Appearance set
+def renameAlbum():
+	global header
+	global footer
+	header = str(request.forms.get('header'))
+	footer = str(request.forms.get('footer'))
+	if header=='': header=dblib.newDBStruct['settings']['header']
+	if footer=='': footer=dblib.newDBStruct['settings']['footer']
+	db['settings']['header']=header
+	db['settings']['footer']=footer
+	header=template(db['settings']['header'], servername=db['settings']['servername'], static=os.path.join(db['settings']['httpdroot'], 'static'))
+	dblib.saveDB(dbPath, db)
+	return '<h1>Success!</h1><script>location.replace(document.referrer);</script>'
 
 # Control Panel Web Interface
 
@@ -286,7 +340,7 @@ def cAudios():
 		if id<(len(dblib.getAudios(db)[0])-1): a+=template('<form action="{{purl}}" name=\'mvDown{{id}}\' method="post"><input type="hidden" name="id1" value="{{id}}" align="right" /><input type="hidden" name="id2" value="-1" /><input type=\'submit\' value=\'v\' align=top/></form>', purl=os.path.join(db['settings']['httpdroot'], 'control/moveAudio'), id=id) 
 		if id>0: a+=template('<form action="{{purl}}" name=\'mvUp{{fid}}\' method="post"><input type="hidden" name="id1" value="{{id}}" /><input type="hidden" name="id2" value="-1" /><input type=\'submit\' value=\'^\'/></form>', purl=os.path.join(db['settings']['httpdroot'], 'control/moveAudio'), id=id-1, fid=id) 
 		a+=template('<form></form><a href="{{r}}{{id}}"><button>E</button></a>', r=os.path.join(db['settings']['httpdroot'], 'control/audios/'), id=id)
-		a+=template('<form action="{{purl}}" name=\'del{{id}}\' method="post"><input type="hidden" name="id" value="{{id}}" /><input type=\'submit\' value=\'X\'/></form>', purl=os.path.join(db['settings']['httpdroot'], 'control/delAudio'), id=id) 
+		a+=template('<form onSubmit="if(!confirm(\'Are you sure want remove this audio? This action is irreversible.\')){return false;}" action="{{purl}}" name=\'del{{id}}\' method="post"><input type="hidden" name="id" value="{{id}}" /><input type=\'submit\' value=\'X\'/></form>', purl=os.path.join(db['settings']['httpdroot'], 'control/delAudio'), id=id) 
 		a+='</p>'
 		return a
 	for audio in dblib.getAudios(db)[0]:
@@ -320,7 +374,7 @@ def cAlbums():
 		if num<(len(db['alist'])-1): a+=template('<form action="{{purl}}" name=\'mvDown{{id}}\' method="post"><input type="hidden" name="id1" value="{{id}}" align="right" /><input type="hidden" name="id2" value="-1" /><input type=\'submit\' value=\'v\' align=top/></form>', purl=os.path.join(db['settings']['httpdroot'], 'control/moveAlbum'), id=num) 
 		if num>0: a+=template('<form action="{{purl}}" name=\'mvUp{{fid}}\' method="post"><input type="hidden" name="id1" value="{{id}}" /><input type="hidden" name="id2" value="-1" /><input type=\'submit\' value=\'^\'/></form>', purl=os.path.join(db['settings']['httpdroot'], 'control/moveAlbum'), id=num-1, fid=num) 
 		a+=template('<form></form><a href="{{r}}{{num}}"><button>E</button></a>', r=os.path.join(db['settings']['httpdroot'], 'control/albums/'), num=num)
-		a+=template('<form action="{{purl}}" name=\'del{{album}}\' method="post"><input type="hidden" name="album" value="{{album}}" /><input type=\'submit\' value=\'X\'/></form>', purl=os.path.join(db['settings']['httpdroot'], 'control/delAlbum'), album=album) 
+		a+=template('<form onSubmit="if(!confirm(\'Are you sure want delete this album? This action is irreversible.\')){return false;}" action="{{purl}}" name=\'del{{album}}\' method="post"><input type="hidden" name="album" value="{{album}}" /><input type=\'submit\' value=\'X\'/></form>', purl=os.path.join(db['settings']['httpdroot'], 'control/delAlbum'), album=album) 
 		a+='</p>'
 		return a
 	n=0
@@ -345,7 +399,7 @@ def cAlbum(aid):
 			a='<p style="form { display: inline; }">'
 			if id<(len(dblib.getAudios(db, album)[0])-1): a+=template('<form action="{{purl}}" name=\'mvDown{{id}}\' method="post"><input type="hidden" name="album" value="{{albname}}" /><input type="hidden" name="id1" value="{{id}}"/><input type="hidden" name="id2" value="-1" /><input type=\'submit\' value=\'v\' /></form>', purl=os.path.join(db['settings']['httpdroot'], 'control/moveAudio'), id=id, albname=album)
 			if id>0: a+=template('<form action="{{purl}}" name=\'mvUp{{fid}}\' method="post"><input type="hidden" name="album" value="{{albname}}" /><input type="hidden" name="id1" value="{{id}}" /><input type="hidden" name="id2" value="-1" /><input type=\'submit\' value=\'^\'/></form>', purl=os.path.join(db['settings']['httpdroot'], 'control/moveAudio'), id=id-1, fid=id, albname=album) 
-			a+=template('<form action="{{purl}}" name=\'del{{id}}\' method="post"><input type="hidden" name="album" value="{{albname}}" /><input type="hidden" name="id" value="{{id}}" /><input type=\'submit\' value=\'X\'/></form>', purl=os.path.join(db['settings']['httpdroot'], 'control/albumDel'), id=fname, albname=album) 
+			a+=template('<form onSubmit="if(!confirm(\'Are you sure want delete this album entry? This action is irreversible.\')){return false;}" action="{{purl}}" name=\'del{{id}}\' method="post"><input type="hidden" name="album" value="{{albname}}" /><input type="hidden" name="id" value="{{id}}" /><input type=\'submit\' value=\'X\'/></form>', purl=os.path.join(db['settings']['httpdroot'], 'control/albumDel'), id=fname, albname=album) 
 			a+='</p>'
 			return a
 		sf='<input type="hidden" name="album" value="'+album+'" />\n<select name=\'id\'>'
@@ -366,14 +420,18 @@ def cAlbum(aid):
 			id+=1
 		return template(open(os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])),'templates/controlAlbum.tpl'), 'r').read(), cproot=os.path.join(db['settings']['httpdroot'], 'control'), fsname=db['settings']['servername'], alist=a, footer=footer, res=os.path.join(db['settings']['httpdroot'], 'static/'), albname=album, addlist=sf)
 
+@route('/control/appearance')
+def cAppearance():
+	return template(open(os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])),'templates/controlAppearance.tpl'), 'r').read(), cproot=os.path.join(db['settings']['httpdroot'], 'control'), fsname=db['settings']['servername'], header=db['settings']['header'], footer=db['settings']['footer'], purl=os.path.join(db['settings']['httpdroot'], 'control/appearance'), id=str(id), ffooter=footer)
+	
 
 @error(404)
 @error(403)
 def mistake(code):
-    return '<title>Not found</title><center><h1>404 Not Found</h1>\n<hr>MelnikovSM`s MusicSync Server</center	>'
+	return '<title>Not found</title><center><h1>404 Not Found</h1>\n<hr>MelnikovSM`s MusicSync Server</center	>'
 @error(405)
 def mistake(code):
-    return '<title>Method Not Allowed</title><center><h1>405 Method Not Allowed</h1>\n<hr>MelnikovSM`s MusicSync Server</center>'
+	return '<title>Method Not Allowed</title><center><h1>405 Method Not Allowed</h1>\n<hr>MelnikovSM`s MusicSync Server</center>'
 
 if __name__ == "__main__":
 	print('Starting up..')
