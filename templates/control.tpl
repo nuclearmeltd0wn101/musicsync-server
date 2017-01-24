@@ -35,6 +35,12 @@ form {display: inline-block;}
 		<td width="160px">-</td>
 		<td width="30px"><a href='{{cdw}}/appearance'><button>Manage</button></a><br></td>
 	</tr>
+	<tr>
+		<td>System Settings</td>
+		<td width="120px">-</td>
+		<td width="160px">-</td>
+		<td width="30px"><a href='{{cdw}}/system'><button>Manage</button></a><br></td>
+	</tr>
 </table><br />
 * - DataBase total size, not albums only!<br>
 You also may <a href='{{cdw}}/reload'><button>Reload DB from disk</button></a>

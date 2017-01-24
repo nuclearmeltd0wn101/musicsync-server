@@ -8,8 +8,10 @@
 <body>
 <h1>Configure appearance - <a href='{{cproot}}'>Control panel</a></h1>
 <form action="{{purl}}" method="post" enctype="multipart/form-data">
+Server name: <input type="text" name="servername" value="{{servername}}" size=120 /><br>
 Header HTML: <input type="text" name="header" value="{{header}}" size=120 /><br>
 Varribles: servername - server name, static - path to static content dir<br>
+<br>
 Footer HTML: <input type="text" name="footer" value="{{ffooter}}" size=120 /><br>
 <input type="submit" value="Change appearance" />
 </form>

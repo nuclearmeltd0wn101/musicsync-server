@@ -4,7 +4,7 @@ import sys
 reload(sys)  
 sys.setdefaultencoding('utf8')
 
-newDBStruct={'audios': [], 'alist': [], 'albums': {}, 'alist':[],  'settings': {'servername': 'Someone`s Music Storage', 'httpdip': '127.0.0.1', 'httpdport': '8084', 'musicdir': 'audios', 'httpdroot': 'http://localhost:8084/', 'header': '''{{servername}}''', 'footer': '''&copy 2017 <a style="color: orange" href="https://melnikovsm.tk" target="_blank">MelnikovSM</a>. Powered by <a style="color: orange" href='https://github.com/MelnikovSM/musicsync-server' target='_blank'>MelnikovSM`s MusicSync</a>'''}}
+newDBStruct={'audios': [], 'alist': [], 'albums': {}, 'alist':[],  'settings': {'servername': 'Someone`s Music Storage', 'httpdip': '127.0.0.1', 'httpdport': '8084', 'musicdir': 'audios', 'httpdroot': 'http://localhost:8084/', 'header': '''{{servername}}''', 'footer': '''&copy 2017 <a style="color: orange" href="https://melnikovsm.tk" target="_blank">MelnikovSM</a>. Powered by <a style="color: orange" href='https://github.com/MelnikovSM/musicsync-server' target='_blank'>MelnikovSM`s MusicSync</a>''', 'plUrl': '/playlist.m3u8', 'plsUrl': '/pl/<album>.m3u8'}}
 
 def saveDB(dbPath,db):
 	output = open(dbPath, 'wb')

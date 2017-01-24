@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 dbPath='msync.db'
-print('MusicSync Server version 170120\nCopyright (C) 2017 MelnikovSM')
+print('MusicSync Server version 170125\nCopyright (C) 2017 MelnikovSM')
 import pickle, os, sys, json
 import dblib
 from bottle import route, run, template, static_file, error, request, HTTPResponse
@@ -22,7 +22,7 @@ def read(prompt, defaultvalue=''):
 
 if not os.path.isfile(dbPath):
 	db=dblib.newDBStruct
-	print('Configuring your MusicSync Server..')
+	print('Processing inital configuration of your MusicSync Server installation..')
 	db['settings']['servername']=read('Server name (leave for "'+db['settings']['servername']+'"): ', db['settings']['servername'])
 	db['settings']['musicdir']=read('Path to audios dir (leave for "'+db['settings']['musicdir']+'"): ', db['settings']['musicdir'])
 	db['settings']['httpdip']=read('HTTP Server IP (leave for '+db['settings']['httpdip']+'): ', db['settings']['httpdip'])
@@ -144,10 +144,10 @@ def genplm3u8(audios):
 	out='#EXTM3U\n'
 	for audio in audios: out+=template('#EXTINF:,{{!name}}\n{{!url}}\n', name=audio['artist']+' - '+audio['title'], url=os.path.join(db['settings']['httpdroot'], 'getAudio', audio['filename']))
 	return out
-@route('/playlist.m3u8') #  m3u8 playlist api
+@route(db['settings']['plUrl']) #  m3u8 playlist api
 def genm3upl():
 	return genplm3u8(db['audios'])
-@route('/pl/<album>.m3u8')
+@route(db['settings']['plsUrl'])
 def genm3upla(album):
 	album = unquote(album)
 	if album==None: album=''
@@ -311,25 +311,50 @@ def renameAlbum():
 	else: return HTTPResponse(status=424, body='<h1>Request error</h1><script>location.replace(document.referrer);</script>')
 	
 @route('/control/appearance', method='POST') # Appearance set
-def renameAlbum():
+def cpApppearance():
 	global header
 	global footer
 	header = str(request.forms.get('header'))
 	footer = str(request.forms.get('footer'))
+	servername=str(request.forms.get('servername'))
 	if header=='': header=dblib.newDBStruct['settings']['header']
 	if footer=='': footer=dblib.newDBStruct['settings']['footer']
+	if servername=='': servername=dblib.newDBStruct['settings']['servername']
+	db['settings']['servername']=servername
 	db['settings']['header']=header
 	db['settings']['footer']=footer
 	header=template(db['settings']['header'], servername=db['settings']['servername'], static=os.path.join(db['settings']['httpdroot'], 'static'))
 	dblib.saveDB(dbPath, db)
 	return '<h1>Success!</h1><script>location.replace(document.referrer);</script>'
 
+@route('/control/system', method='POST') # System config set
+def cpSystem():
+	plUrl = str(request.forms.get('plurl'))
+	plsUrl = str(request.forms.get('plsurl'))
+	musicdir = str(request.forms.get('musicdir'))
+	httpdip = str(request.forms.get('httpdip'))
+	httpdport = str(request.forms.get('httpdport'))
+	httpdroot = str(request.forms.get('httpdroot'))
+	if musicdir=='': musicdir=dblib.newDBStruct['settings']['musicdir']
+	if httpdip=='': httpdip=dblib.newDBStruct['settings']['httpdip']
+	if httpdport=='': httpdport=dblib.newDBStruct['settings']['httpdport']
+	if httpdroot=='': httpdroot=dblib.newDBStruct['settings']['httpdroot']
+	if plUrl=='': plUrl=dblib.newDBStruct['settings']['plUrl']
+	if plsUrl=='': plsUrl=dblib.newDBStruct['settings']['plsUrl']
+	db['settings']['plUrl']=plUrl
+	db['settings']['plsUrl']=plsUrl
+	db['settings']['musicdir']=musicdir
+	db['settings']['httpdip']=httpdip
+	db['settings']['httpdport']=httpdport
+	db['settings']['httpdroot']=httpdroot
+	dblib.saveDB(dbPath, db)
+	return '<h1>Success!</h1><script>location.replace(document.referrer);</script>'
 # Control Panel Web Interface
 
 @route('/control')
 @route('/control/')
 def controlIndex():
-	return template(open(os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])),'templates/control.tpl'), 'r').read(), httproot=db['settings']['httpdroot'], cdw=os.path.join(db['settings']['httpdroot'], 'control'), fsname=db['settings']['servername'], footer=footer, asize=str(float(get_size('audios/')*10/1024/1024)/10), acount=str(len(dblib.getAudios(db)[0])),dsize=str(float(os.path.getsize('msync.db')*10/1024)/10), bcount=str(len(db['albums'])))
+	return template(open(os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])),'templates/control.tpl'), 'r').read(), httproot=db['settings']['httpdroot'], cdw=os.path.join(db['settings']['httpdroot'], 'control'), fsname=db['settings']['servername'], footer=footer, asize=str(float(get_size(db['settings']['musicdir'])*10/1024/1024)/10), acount=str(len(dblib.getAudios(db)[0])),dsize=str(float(os.path.getsize('msync.db')*10/1024)/10), bcount=str(len(db['albums'])))
 
 @route('/control/audios')
 @route('/control/audios/')
@@ -422,9 +447,12 @@ def cAlbum(aid):
 
 @route('/control/appearance')
 def cAppearance():
-	return template(open(os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])),'templates/controlAppearance.tpl'), 'r').read(), cproot=os.path.join(db['settings']['httpdroot'], 'control'), fsname=db['settings']['servername'], header=db['settings']['header'], footer=db['settings']['footer'], purl=os.path.join(db['settings']['httpdroot'], 'control/appearance'), id=str(id), ffooter=footer)
-	
+	return template(open(os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])),'templates/controlAppearance.tpl'), 'r').read(), cproot=os.path.join(db['settings']['httpdroot'], 'control'), fsname=db['settings']['servername'], header=db['settings']['header'], footer=db['settings']['footer'], purl=os.path.join(db['settings']['httpdroot'], 'control/appearance'), ffooter=footer, servername=db['settings']['servername'])
 
+@route('/control/system')
+def cSystem():
+	return template(open(os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])),'templates/controlSystem.tpl'), 'r').read(), cproot=os.path.join(db['settings']['httpdroot'], 'control'), fsname=db['settings']['servername'], footer=db['settings']['footer'], purl=os.path.join(db['settings']['httpdroot'], 'control/system'), plurl=db['settings']['plUrl'], plsurl=db['settings']['plsUrl'], musicdir=db['settings']['musicdir'], httpdip=db['settings']['httpdip'], httpdport=db['settings']['httpdport'], httpdroot=db['settings']['httpdroot'])
+	
 @error(404)
 @error(403)
 def mistake(code):
