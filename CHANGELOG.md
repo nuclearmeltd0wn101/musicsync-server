@@ -1,5 +1,9 @@
 MusicSync Server changelog:
 
+29 Jan 2017 [20170129]:
+* Added lyrics add ability
+* Playlist selector hides automatically if no user playlists created
+
 25 Jan 2017 [20170125]:
 * Improved appearance control page
 * Added system settings edit page

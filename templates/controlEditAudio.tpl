@@ -11,6 +11,8 @@
 <input type="hidden" name="id" value="{{id}}" />
 New Artist:  <input type="text" name="artist" value="{{pra}}" /><br>
 New Title: <input type="text" name="title" value="{{prt}}" /><br>
+New lyrics:<br>
+<textarea rows="24" cols="42" name="lyrics">{{lyrics}}</textarea><br>
 <input type="submit" value="Modify audio" />
 </form>
 <style>

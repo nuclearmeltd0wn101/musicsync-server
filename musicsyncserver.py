@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 dbPath='msync.db'
-print('MusicSync Server version 170125\nCopyright (C) 2017 MelnikovSM')
+print('MusicSync Server version 170129\nCopyright (C) 2017 MelnikovSM')
 import pickle, os, sys, json
 import dblib
 from bottle import route, run, template, static_file, error, request, HTTPResponse
@@ -46,12 +46,14 @@ def get_size(start_path = '.'): # Get directory size
     return total_size
 
 def genPlLinks(): # Generate albums selector on play pages
-	a='''<select onchange="window.location.href=this.options[this.selectedIndex].value" style="position: absolute; top: 10px; right:16px;">\n'''
-	a+='''<option VALUE="#">Go to album..</option>\n'''
-	a+='''<option VALUE="'''+db['settings']['httpdroot']+'''">All audios</option>\n'''
-	for alb in db['alist']:
-		a+='''<option VALUE="'''+os.path.join(db['settings']['httpdroot'], 'album/'+alb)+'''">'''+alb+'''</option>\n'''
-	a+='</select>\n'
+	if len(db['alist'])>0:
+		a='''<select onchange="window.location.href=this.options[this.selectedIndex].value" style="position: absolute; top: 10px; right:16px;">\n'''
+		a+='''<option VALUE="#">Go to album..</option>\n'''
+		a+='''<option VALUE="'''+db['settings']['httpdroot']+'''">All audios</option>\n'''
+		for alb in db['alist']:
+			a+='''<option VALUE="'''+os.path.join(db['settings']['httpdroot'], 'album/'+alb)+'''">'''+alb+'''</option>\n'''
+		a+='</select>\n'
+	else: a=''
 	return a
 
 # User Web Interface
@@ -64,11 +66,26 @@ def UIgenPlayer(album=''):
 	if relreq: dblib.saveDB(dbPath, db)
 	if not len(audios)==0:
 		n=1
+		lyrpp=''
 		for audio in audios: 
 			audioID=dblib.fname2id(db, audio['filename'])
-			a+=template(aformertpl, artist=audio['artist'], title=audio['title'], path=os.path.join(db['settings']['httpdroot'],'getAudio/', audio['filename']), id=str(audioID), num=str(n),res=os.path.join(db['settings']['httpdroot'], 'static/'), aid=audio['filename'], shr=os.path.join(db['settings']['httpdroot'], 'audio'))+'\n'
+			if ('lyrics' in audio) and (audio['lyrics']<>''): 
+				lyrbtn=template('''<a href="#lyrics{{id}}" style='float: right'><img src='{{res}}player/media/data/lyrics.png' /> </a>''', id=n, res=os.path.join(db['settings']['httpdroot'], 'static/'))
+				lyrics=''
+				for ln in audio['lyrics'].splitlines(): lyrics+=ln+'<br />\n'
+				lyrpp+=template('''<a href="#x" class="overlay" id="lyrics{{id}}"></a>
+<div class="popup">
+<center><h2>"{{fn}}" lyrics:</h2><br />
+<div style="height:540px;width:100%;overflow:auto;">
+{{!lyrics}}
+</div>
+</center>
+<a class="close" title="Close" href="#close"></a>
+</div>''', id=n, lyrics=lyrics, root=db['settings']['httpdroot'], aid=audio['filename'], fn=audio['artist']+' - '+audio['title'])
+			else: lyrbtn=''
+			a+=template(aformertpl, artist=audio['artist'], title=audio['title'], path=os.path.join(db['settings']['httpdroot'],'getAudio/', audio['filename']), id=str(audioID), num=str(n),res=os.path.join(db['settings']['httpdroot'], 'static/'), aid=audio['filename'], shr=os.path.join(db['settings']['httpdroot'], 'audio'), lyrbtn=lyrbtn, lyrpp=lyrpp)+'\n'
 			n+=1
-	return template(playertpl, body=a, res=os.path.join(db['settings']['httpdroot'], 'static/'))
+	return template(playertpl, body=a, res=os.path.join(db['settings']['httpdroot'], 'static/'))+'\n'+lyrpp
 
 @route('/') # All audios
 def index():
@@ -111,8 +128,23 @@ def audioDisplay(aid):
 	aformertpl=open(os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])),'templates/audioformer.tpl'), 'r').read()
 	audioID=dblib.fname2id(db, aid)
 	if audioID>-1:
-		audio=db['audios'][audioID]		
-		a=template(open(os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])),'templates/player.tpl'), 'r').read(), body=template(aformertpl, artist=audio['artist'], title=audio['title'], path=os.path.join(db['settings']['httpdroot'],'getAudio/', audio['filename']), id=str(audioID), num='0',res=os.path.join(db['settings']['httpdroot'], 'static/'), aid=audio['filename'], shr=os.path.join(db['settings']['httpdroot'], 'audio'))+'\n', res=os.path.join(db['settings']['httpdroot'], 'static/'))	
+		audio=db['audios'][audioID]
+		lyrpp=''
+		if ('lyrics' in audio) and (audio['lyrics']<>''): 
+				lyrbtn=template('''<a href="#lyrics{{id}}" style='float: right'><img src='{{res}}player/media/data/lyrics.png' /> </a>''', id=1, res=os.path.join(db['settings']['httpdroot'], 'static/'))
+				lyrics=''
+				for ln in audio['lyrics'].splitlines(): lyrics+=ln+'<br />\n'
+				lyrpp+=template('''<a href="#x" class="overlay" id="lyrics{{id}}"></a>
+<div class="popup">
+<center><h2>"{{fn}}" lyrics:</h2><br />
+<div style="height:540px;width:100%;overflow:auto;">
+{{!lyrics}}
+</div>
+</center>
+<a class="close" title="Close" href="#close"></a>
+</div>''', id=1, lyrics=lyrics, root=db['settings']['httpdroot'], aid=audio['filename'], fn=audio['artist']+' - '+audio['title'])
+		else: lyrbtn=''
+		a=template(open(os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])),'templates/player.tpl'), 'r').read(), body=template(aformertpl, artist=audio['artist'], title=audio['title'], lyrbtn=lyrbtn, path=os.path.join(db['settings']['httpdroot'],'getAudio/', audio['filename']), id=str(audioID), num='0',res=os.path.join(db['settings']['httpdroot'], 'static/'), aid=audio['filename'], shr=os.path.join(db['settings']['httpdroot'], 'audio'))+'\n', res=os.path.join(db['settings']['httpdroot'], 'static/'))+'\n'+lyrpp
 		pgn=('\"'+audio['artist']+' - '+audio['title']+'\" - '+db['settings']['servername'])
 	else:
 		pgn=('Audio not exist - '+db['settings']['servername'])
@@ -133,6 +165,21 @@ def server_audios(num):
 		else:
 			return static_file(db['audios'][id]['filename'], root=db['settings']['musicdir'])
 	except ValueError: return HTTPResponse(status=424, body='<h1>Error: Incorrect audio ID!</h1>')
+
+@route('/getAudio/lyrics') # Placeholder for case of no audio ID specified
+@route('/getAudio/lyrics/')
+def gaph():
+	return HTTPResponse(status=424, body='<h1>Error: Audio ID expected!</h1>')
+@route('/getAudio/lyrics/<num>') # Audios fetching
+def server_audios(num):
+	try:
+		id=dblib.fname2id(db, int(num))
+		if int(id)<0: return HTTPResponse(status=404, body='<h1>Error: Audio not found!</h1>')
+		else:
+			try: return db['audios'][id]['lyrics']
+			except KeyError: return ''
+	except ValueError: return HTTPResponse(status=424, body='<h1>Error: Incorrect audio ID!</h1>')
+
 @route('/static/<path:path>') # Static files
 def server_static(path):
 	path=unquote(path)
@@ -225,7 +272,8 @@ def modAudio():
 		id = int(request.forms.get('id'))
 		artist = request.forms.get('artist')
 		title = request.forms.get('title')
-		if dblib.modifyAudio(db, id, artist, title):
+		lyrics = request.forms.get('lyrics')
+		if dblib.modifyAudio(db, id, artist, title, lyrics):
 			dblib.saveDB(dbPath, db)
 			return '<h1>Success!</h1><script>location.replace(document.referrer);</script>'
 		else: return HTTPResponse(status=404, body='<h1>Error: Audio with specified ID not found</h1><script>location.replace(document.referrer);</script>')
@@ -364,7 +412,7 @@ def cAudios():
 		a='<p style="form { display: inline; }">'
 		if id<(len(dblib.getAudios(db)[0])-1): a+=template('<form action="{{purl}}" name=\'mvDown{{id}}\' method="post"><input type="hidden" name="id1" value="{{id}}" align="right" /><input type="hidden" name="id2" value="-1" /><input type=\'submit\' value=\'v\' align=top/></form>', purl=os.path.join(db['settings']['httpdroot'], 'control/moveAudio'), id=id) 
 		if id>0: a+=template('<form action="{{purl}}" name=\'mvUp{{fid}}\' method="post"><input type="hidden" name="id1" value="{{id}}" /><input type="hidden" name="id2" value="-1" /><input type=\'submit\' value=\'^\'/></form>', purl=os.path.join(db['settings']['httpdroot'], 'control/moveAudio'), id=id-1, fid=id) 
-		a+=template('<form></form><a href="{{r}}{{id}}"><button>E</button></a>', r=os.path.join(db['settings']['httpdroot'], 'control/audios/'), id=id)
+		a+=template('<form></form><a href="{{r}}{{id}}" target="_blank"><button>E</button></a>', r=os.path.join(db['settings']['httpdroot'], 'control/audios/'), id=id)
 		a+=template('<form onSubmit="if(!confirm(\'Are you sure want remove this audio? This action is irreversible.\')){return false;}" action="{{purl}}" name=\'del{{id}}\' method="post"><input type="hidden" name="id" value="{{id}}" /><input type=\'submit\' value=\'X\'/></form>', purl=os.path.join(db['settings']['httpdroot'], 'control/delAudio'), id=id) 
 		a+='</p>'
 		return a
@@ -387,7 +435,11 @@ def cEditAudio(id):
 	try:
 		pra=dblib.getAudios(db)[0][id]['artist']
 		prt=dblib.getAudios(db)[0][id]['title']
-		return template(open(os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])),'templates/controlEditAudio.tpl'), 'r').read(), cproot=os.path.join(db['settings']['httpdroot'], 'control/audios'), fsname=db['settings']['servername'], pra=pra, prt=prt, purl=os.path.join(db['settings']['httpdroot'], 'control/modifyAudio'), id=str(id), footer=footer)
+		try: prl=dblib.getAudios(db)[0][id]['lyrics']
+		except KeyError:
+			dblib.getAudios(db)[0][id]['lyrics']=''
+			prl=''
+		return template(open(os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])),'templates/controlEditAudio.tpl'), 'r').read(), cproot=os.path.join(db['settings']['httpdroot'], 'control/audios'), fsname=db['settings']['servername'], pra=pra, prt=prt, purl=os.path.join(db['settings']['httpdroot'], 'control/modifyAudio'), id=str(id), footer=footer, lyrics=prl)
 	except IndexError: return HTTPResponse(status=404, body='<h1>Error: Audio with specified ID not found</h1><script>location.replace(document.referrer);</script>')
 	
 @route('/control/albums')

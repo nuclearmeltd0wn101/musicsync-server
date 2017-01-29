@@ -9,6 +9,7 @@
 	<link rel="stylesheet" type="text/css" href="{{res}}player/css/jquery.selectbox.css" />
 	<link rel="stylesheet" type="text/css" href="{{res}}player/css/html5audio_default.css" />
 	<link rel="stylesheet" type="text/css" href="{{res}}player/css/html5audio_playlist_selector_with_scroll.css" />
+	<link rel="stylesheet" href="{{res}}player/css/style-modal.css" rel="stylesheet">
 
 	<script type="text/javascript" src="{{res}}player/js/swfobject.js"></script><!-- flash backup --> 
 	<script type="text/javascript" src="{{res}}player/js/jquery-1.11.1.min.js"></script>

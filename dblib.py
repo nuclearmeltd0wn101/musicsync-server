@@ -139,9 +139,10 @@ def moveAudio(db, id1, id2, album=''):
 		else: return False
 	else: return False
 
-def modifyAudio(db, id, artist, title):
+def modifyAudio(db, id, artist, title, lyrics=None):
 	if id<len(db['audios']):
 		db['audios'][id]['artist']=artist
 		db['audios'][id]['title']=title
+		if str(lyrics)<>'None': db['audios'][id]['lyrics']=lyrics
 		return True
 	else: return False
