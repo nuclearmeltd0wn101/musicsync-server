@@ -4,7 +4,7 @@ import sys
 reload(sys)  
 sys.setdefaultencoding('utf8')
 
-newDBStruct={'audios': [], 'alist': [], 'albums': {}, 'alist':[],  'settings': {'servername': 'Someone`s Music Storage', 'httpdip': '127.0.0.1', 'httpdport': '8084', 'musicdir': 'audios', 'httpdroot': 'http://localhost:8084/', 'header': '''{{servername}}''', 'footer': '''&copy 2017 <a style="color: orange" href="https://melnikovsm.tk" target="_blank">MelnikovSM</a>. Powered by <a style="color: orange" href='https://github.com/MelnikovSM/musicsync-server' target='_blank'>MelnikovSM`s MusicSync</a>''', 'plUrl': '/playlist.m3u8', 'plsUrl': '/pl/<album>.m3u8'}}
+newDBStruct={'audios': [], 'alist': [], 'albums': {}, 'alist':[],  'settings': {'servername': 'Someone`s Music Storage', 'httpdip': '127.0.0.1', 'httpdport': '8084', 'musicdir': 'audios', 'httpdroot': 'http://localhost:8084/', 'header': '''{{servername}}''', 'footer': '''&copy 2017 <a style="color: orange" href="https://melnikovsm.tk" target="_blank">MelnikovSM</a>. Powered by <a style="color: orange" href='https://github.com/MelnikovSM/musicsync-server' target='_blank'>MusicSync Server</a>''', 'plUrl': '/playlist.m3u8', 'plsUrl': '/pl/<album>.m3u8', 'welcometext': '''Welcome to new MusicSync Server installation!<br />\nThis text may be changed at "Appearance" realm of control panel.<br />\nPlease choose album below to view audio collection.<br />\n''', 'permissions': {'view': 3, 'edit': 1, 'system': 0}}, 'accounts': {}}
 
 def saveDB(dbPath,db):
 	output = open(dbPath, 'wb')
@@ -146,3 +146,10 @@ def modifyAudio(db, id, artist, title, lyrics=None):
 		if str(lyrics)<>'None': db['audios'][id]['lyrics']=lyrics
 		return True
 	else: return False
+def searchAudio(audios, string):
+	candidates=[]
+	i=0
+	for audio in audios:
+		if (string in (audio['artist']+' - '+audio['title']).lower() ): candidates.append(i)
+		i+=1
+	return candidates

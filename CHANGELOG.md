@@ -1,5 +1,12 @@
 MusicSync Server changelog:
 
+5 Feb 2017 [20170205]:
+
+* Added modifiable main page
+* All audios moved to dedicated page
+* Added search ability
+* Implemented authenication & access control
+
 29 Jan 2017 [20170129]:
 * Added lyrics add ability
 * Playlist selector hides automatically if no user playlists created

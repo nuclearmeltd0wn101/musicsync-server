@@ -23,6 +23,7 @@ Varribles: album - album name<br>
 </form>
 <style>
 #bottomdiv{
+ font-family: 'Tahoma', Arial, sans-serif;
  position: absolute;
  bottom: 0px;
 }

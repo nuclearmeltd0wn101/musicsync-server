@@ -7,6 +7,7 @@ function copyToClipboard(element) {
   $temp.remove();
 }
 </script>
+<script type="text/javascript" src="{{res}}player/js/swfobject.js"></script><!-- flash backup --> 
 <script type="text/javascript" src="{{res}}player/js/jquery.html5audio.min.js"></script>
 <script type="text/javascript" src="{{res}}player/js/jquery.html5audio.func.js"></script>
 <script type="text/javascript" src="{{res}}player/js/jquery.html5audio.settings_playlist_selector_with_scroll.js"></script>

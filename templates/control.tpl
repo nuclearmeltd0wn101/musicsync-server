@@ -6,10 +6,11 @@
 	<title>Control panel - {{fsname}}</title>
 </head>
 <body>
-<h1>Control Panel - <a href='{{httproot}}'>{{fsname}}</a></h1>
 <style>
 form {display: inline-block;}
 </style>
+<h1>Control Panel - <a href='{{httproot}}'>{{fsname}}</a></h1>
+{{!welcomeback}}<br />
 <table border="1" width="800px">
 	<tr>
 		<th>Realm</th>
@@ -36,6 +37,12 @@ form {display: inline-block;}
 		<td width="30px"><a href='{{cdw}}/appearance'><button>Manage</button></a><br></td>
 	</tr>
 	<tr>
+		<td>Accounts & access control</td>
+		<td width="120px">-</td>
+		<td width="160px">-</td>
+		<td width="30px"><a href='{{cdw}}/accounts'><button>Manage</button></a><br></td>
+	</tr>
+	<tr>
 		<td>System Settings</td>
 		<td width="120px">-</td>
 		<td width="160px">-</td>
@@ -46,6 +53,7 @@ form {display: inline-block;}
 You also may <a href='{{cdw}}/reload'><button>Reload DB from disk</button></a>
 <style>
 #bottomdiv{
+ font-family: 'Tahoma', Arial, sans-serif;
  position: absolute;
  bottom: 0px;
 }

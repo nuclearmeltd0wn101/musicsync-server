@@ -4,14 +4,12 @@
 	<meta generator="MSM/MusicSync">
 	<meta http-equiv="Content-Type" content="text/html">
 	<title>{{pgname}}</title>
-
+	
 	<link rel="stylesheet" type="text/css" href="{{res}}player/css/jquery.jscrollpane.css" media="all" />
 	<link rel="stylesheet" type="text/css" href="{{res}}player/css/jquery.selectbox.css" />
 	<link rel="stylesheet" type="text/css" href="{{res}}player/css/html5audio_default.css" />
 	<link rel="stylesheet" type="text/css" href="{{res}}player/css/html5audio_playlist_selector_with_scroll.css" />
 	<link rel="stylesheet" href="{{res}}player/css/style-modal.css" rel="stylesheet">
-
-	<script type="text/javascript" src="{{res}}player/js/swfobject.js"></script><!-- flash backup --> 
 	<script type="text/javascript" src="{{res}}player/js/jquery-1.11.1.min.js"></script>
 	<script type="text/javascript" src="{{res}}player/js/jquery-ui-1.10.3.custom.min.js"></script><!-- jquery ui sortable/draggable -->
 	<script type="text/javascript" src="{{res}}player/js/jquery.ui.touch-punch.min.js"></script><!-- mobile drag/sort -->
@@ -27,10 +25,11 @@
 	</script>
 </head>
 <body onload='mobZoom()'>
-<h1 style="color: white">{{!header}}</h1>
+<h1 style="color: white; font-family: 'Tahoma', Arial, sans-serif;">{{!header}}</h1>
 {{!content}}
 <style>
 #bottomdiv{
+ font-family: 'Tahoma', Arial, sans-serif;
  position: absolute;
  bottom: 0px;
  right: 0px;
