@@ -50,7 +50,7 @@ form {display: inline-block;}
 	</tr>
 </table><br />
 * - DataBase total size, not albums only!<br>
-You also may <a href='{{cdw}}/reload'><button>Reload DB from disk</button></a>
+You also may <form action="{{cdw}}/reload" method="post" enctype="multipart/form-data"><input type="submit" value="Reload DB from disk" /></form>
 <style>
 #bottomdiv{
  font-family: 'Tahoma', Arial, sans-serif;

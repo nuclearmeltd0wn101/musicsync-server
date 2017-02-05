@@ -340,14 +340,14 @@ def genPlJSONalb():
 	if album==None: album=''
 	if (album in db['alist']) or album=='': return json.dumps(dblib.getAudios(db, album)[0])
 	else: return HTTPResponse(status=404, body='Album not found!')
-@route('/api/albums')
+@route('/api/albums', method='POST')
 def genAlbListJSON():
 	auth(db['settings']['permissions']['view'], unquote(str(request.forms.get('token'))))
 	return json.dumps(db['alist'])
 
 # Control API
 
-@route('/control/reload') # reload database from disk
+@route('/control/reload', method='POST') # reload database from disk
 def reloadDB():
 	global db
 	auth(db['settings']['permissions']['system'], request.forms.get('token'))
