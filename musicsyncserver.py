@@ -125,6 +125,25 @@ def logout():
 	if ('username' in request.cookies): response.set_cookie('username', '', expires=0)
 	return template(open(os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])),'templates/login.tpl'), 'r').read(), content='''<h1 style="color: white; font-family: 'Tahoma', Arial, sans-serif;">Logout succeeded!</h1><script>location.replace(document.referrer);</script>''', sname=db['settings']['servername'], header=header, footer=footer)
 
+@route('/getToken', method='POST') # get token via POST request
+def getToken():
+	token=genToken(request.forms.get('username'), request.forms.get('password'))
+	if checkToken(token)[0]<3: return token
+	else: return HTTPResponse(status=401, body='0')
+@route('/getToken/<username>/<password>') # get token via POST request
+def getToken(username, password):
+	token=genToken(username, password)
+	if checkToken(token)[0]<3: return token
+	else: return HTTPResponse(status=401, body='0')
+
+@route('/getToken') # get token via browser
+def getToken():
+	if ('token' in request.cookies):
+		token=request.cookies['token']
+		if checkToken(token)[0]<3: return token
+		else: return HTTPResponse(status=401, body='0')
+	else: return HTTPResponse(status=401, body='0')
+
 # User Web Interface
 
 def genPlLinks(): # Generate albums selector on play pages
@@ -265,9 +284,29 @@ def audioDisplay(aid):
 @route('/getAudio/')
 def gaph():
 	return HTTPResponse(status=424, body='<h1>Error: Audio ID expected!</h1>')
-@route('/getAudio/<num>') # Audios fetching
+@route('/getAudio/<num:int>') # Audios fetching
 def server_audios(num):
-	auth(db['settings']['permissions']['view'])
+	auth(db['settings']['permissions']['view'], request.forms.get('token'))
+	try:
+		id=dblib.fname2id(db, int(num))
+		if int(id)<0: return HTTPResponse(status=404, body='<h1>Error: Audio not found!</h1>')
+		else:
+			return static_file(db['audios'][id]['filename'], root=db['settings']['musicdir'])
+	except ValueError: return HTTPResponse(status=424, body='<h1>Error: Incorrect audio ID!</h1>')
+
+@route('/getAudio', method='POST') # POST audio fetch
+def getAudioPost():
+	auth(db['settings']['permissions']['view'], request.forms.get('token'))
+	try:
+		id=dblib.fname2id(db, int(request.forms.get('id')))
+		if int(id)<0: return HTTPResponse(status=404, body='<h1>Error: Audio not found!</h1>')
+		else:
+			return static_file(db['audios'][id]['filename'], root=db['settings']['musicdir'])
+	except: return HTTPResponse(status=424, body='<h1>Error: Incorrect audio ID!</h1>')
+	
+@route('/getAudio/<num:int>/<token>') # Audios fetching using token
+def server_audios(num, token):
+	auth(db['settings']['permissions']['view'], token)
 	try:
 		id=dblib.fname2id(db, int(num))
 		if int(id)<0: return HTTPResponse(status=404, body='<h1>Error: Audio not found!</h1>')
@@ -277,10 +316,10 @@ def server_audios(num):
 
 @route('/getAudio/lyrics') # Placeholder for case of no audio ID specified
 @route('/getAudio/lyrics/')
-def gaph():
+def galt():
 	return HTTPResponse(status=424, body='<h1>Error: Audio ID expected!</h1>')
 @route('/getAudio/lyrics/<num>') # Lyrics fetching
-def server_audios(num):
+def server_lyrics(num):
 	auth(db['settings']['permissions']['view'])
 	try:
 		id=dblib.fname2id(db, int(num))
@@ -289,30 +328,52 @@ def server_audios(num):
 			try: return db['audios'][id]['lyrics']
 			except KeyError: return ''
 	except ValueError: return HTTPResponse(status=424, body='<h1>Error: Incorrect audio ID!</h1>')
+	
+@route('/getAudio/lyrics', request='POST') # Lyrics fetching through POST
+def server_lyrics(num):
+	auth(db['settings']['permissions']['view'], request.forms.get('token'))
+	try:
+		id=dblib.fname2id(db, int(request.forms.get('id')))
+		if int(id)<0: return HTTPResponse(status=404, body='<h1>Error: Audio not found!</h1>')
+		else:
+			try: return db['audios'][id]['lyrics']
+			except KeyError: return ''
+	except ValueError: return HTTPResponse(status=424, body='<h1>Error: Incorrect audio ID!</h1>')
 
 @route('/static/<path:path>') # Static files
 def server_static(path):
-	auth(db['settings']['permissions']['view'])
 	path=unquote(path)
 	if path=='player/js/jquery.html5audio.settings_playlist_selector_with_scroll.js': # Icons path fix
 		return template(open(os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])),'static', path), 'r').read(),res=os.path.join(db['settings']['httpdroot'], 'static/player/'))
 	else: return static_file( os.path.basename(path), (os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])), 'static/', os.path.dirname(path))))
 
-def genplm3u8(audios):
-	auth(db['settings']['permissions']['view'])
+def genplm3u8(audios, token=''):
+	tka=''
+	if token<>'': tka='/'+token
 	out='#EXTM3U\n'
-	for audio in audios: out+=template('#EXTINF:,{{!name}}\n{{!url}}\n', name=audio['artist']+' - '+audio['title'], url=os.path.join(db['settings']['httpdroot'], 'getAudio', audio['filename']))
+	for audio in audios: out+=template('#EXTINF:,{{!name}}\n{{!url}}\n', name=audio['artist']+' - '+audio['title'], url=os.path.join(db['settings']['httpdroot'], 'getAudio', audio['filename']+tka))
 	return out
 @route(db['settings']['plUrl']) #  m3u8 playlist api
 def genm3upl():
 	auth(db['settings']['permissions']['view'])
 	return genplm3u8(db['audios'])
+@route(db['settings']['plUrl']+'/<token>') #  m3u8 playlist api using token
+def genm3upl(token):
+	auth(db['settings']['permissions']['view'], token)
+	return genplm3u8(db['audios'], token)
 @route(db['settings']['plsUrl'])
 def genm3upla(album):
 	auth(db['settings']['permissions']['view'])
 	album = unquote(album)
 	if album==None: album=''
 	if (album in db['alist']) or album=='': return genplm3u8(dblib.getAudios(db, album)[0])
+	else: return HTTPResponse(status=404, body='Album not found!')
+@route(db['settings']['plsUrl']+'/<token>')
+def genm3upla(album, token):
+	auth(db['settings']['permissions']['view'], token)
+	album = unquote(album)
+	if album==None: album=''
+	if (album in db['alist']) or album=='': return genplm3u8(dblib.getAudios(db, album)[0], token)
 	else: return HTTPResponse(status=404, body='Album not found!')
 @route(db['settings']['plUrl'], method='POST')
 def genm3uplalb():
