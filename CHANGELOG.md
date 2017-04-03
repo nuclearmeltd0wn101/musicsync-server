@@ -1,5 +1,11 @@
 MusicSync Server changelog:
 
+5 Apr 2017 [20170405]:
+
+* Minor bugfixes
+* Permissions configuration expansion (added 3 new permissions)
+* Control panel redesign
+
 5 Feb 2017 [20170205]:
 
 * Added modifiable main page

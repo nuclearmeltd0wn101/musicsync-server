@@ -4,6 +4,7 @@
 	<meta generator="MSM/MusicSync">
 	<meta http-equiv="Content-Type" content="text/html">
 	<title>Login - {{sname}}</title>
+	<link rel="shortcut icon" href="/static/favicon.gif" type="image/x-icon">
 <body>
 <style>
 p { font-family: 'Tahoma', Arial, sans-serif; }

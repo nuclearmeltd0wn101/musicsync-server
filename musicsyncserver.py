@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
-dbPath='msync.db'
-print('MusicSync Server version 170205\nCopyright (C) 2017 MelnikovSM')
+dbPath='msync.db' # Path to database file
+version=170405 # Server version, don`t touch for proper work
+print('MusicSync Server version '+str(version)+'\nCopyright (C) 2017 MelnikovSM')
 import pickle, os, sys, json, hashlib, random, string
 import dblib
-from bottle import route, run, template, static_file, error, request, HTTPResponse, response, abort
+from bottle import route, run, template, static_file, error, request, HTTPResponse, response, abort, hook
 from urllib2 import unquote
 from copy import copy
 from getpass import getpass
@@ -45,9 +46,8 @@ if not os.path.isfile(dbPath):
 	dblib.saveDB(dbPath, db)
 else: db=dblib.loadDB(dbPath)
 
-footer=db['settings']['footer']
-header=template(db['settings']['header'], servername=db['settings']['servername'], static=os.path.join(db['settings']['httpdroot'], 'static'))
-if header=='': header=db['settings']['servername']
+footer=template('{{empty}}'+db['settings']['footer'], empty='', srvversion=str(version))
+header=template('{{empty}}'+db['settings']['header'], empty='', servername=db['settings']['servername'], static=os.path.join(db['settings']['httpdroot'], 'static'))
 
 
 def get_size(start_path = '.'): # Get directory size
@@ -76,12 +76,14 @@ def checkToken(token):
 			alevel=db['accounts'][user]['access_level']
 	return alevel, username
 def auth(access_level=3, token=''):
-	if access_level<3:
-		if ('token' in request.cookies) and (checkToken(request.cookies['token'])[0] <= access_level): return
-		if (checkToken(token)[0] <= access_level): return
-		abort(401)
-	else: return
-
+	if ('token' in request.cookies) and (checkToken(request.cookies['token'])[0] <= access_level): return checkToken(request.cookies['token'])[0]
+	if (checkToken(token)[0] <= access_level): return checkToken(token)[0]
+	if access_level<3: abort(401)
+@hook('after_request')
+def enable_cors():
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, OPTIONS'
+    response.headers['Access-Control-Allow-Headers'] = 'Origin, Accept, Content-Type, X-Requested-With, X-CSRF-Token'
 @error(401)
 def loginWindow(error): return template(open(os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])),'templates/login.tpl'), 'r').read(), content=template('''<h3 style="color: white; font-family: 'Tahoma', Arial, sans-serif;">Authentication or permissions escalation required:</h3><form action="{{root}}login" method="post" enctype="multipart/form-data" name='login'>
 <input type="text" name="username" placeholder='Username' /><br>
@@ -97,7 +99,7 @@ def loginWindow():
 </form>''', root=db['settings']['httpdroot']), sname=db['settings']['servername'], header=header, footer=footer)
 	if ('token' in request.cookies):
 		if (checkToken(request.cookies['token'])[0] <= 3):
-			perms=['Administrators', 'Editors', 'Users', 'Guests']
+			perms=['<a href="'+db['settings']['httpdroot']+'control" target="_blank">Administrators</a>', '<a href="'+db['settings']['httpdroot']+'control" target="_blank">Editors</a>', '<a>Users</a>']
 			if ('username' in request.cookies): 
 				username=request.cookies['username']
 				if (username in db['accounts']): avl=db['accounts'][username]['access_level']
@@ -105,7 +107,7 @@ def loginWindow():
 			else:
 				username='Anonymous'
 				avl=3
-			return template(open(os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])),'templates/login.tpl'), 'r').read(), content=template('''<h3 style="color: white; font-family: 'Tahoma', Arial, sans-serif;">You are already logged in as {{account}} (group {{group}}). You also may <a href='{{root}}logout'>logout</a>.</h3>''', root=db['settings']['httpdroot'], account=username, group=perms[avl]), sname=db['settings']['servername'], header=header, footer=footer)
+			return template(open(os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])),'templates/login.tpl'), 'r').read(), content=template('''<h3 style="color: white; font-family: 'Tahoma', Arial, sans-serif;">You are already logged in as <a>{{account}}</a> (group {{!group}}). You also may <a href='{{root}}logout'>logout</a>.</h3>''', root=db['settings']['httpdroot'], account=username, group=perms[avl]), sname=db['settings']['servername'], header=header, footer=footer)
 		else: return a
 	else: return a
 @route('/login', method='POST') # login handler
@@ -195,19 +197,24 @@ def UIgenPlayer(audios): # Generate player UI
 
 @route('/') # Main page
 def mainPage():
-	auth(db['settings']['permissions']['view'])
-	perms=['Administrators', 'Editors', 'Users']
+	alvl=auth(3) # Allow access to home page for everyone
+	perms=['<a href="'+db['settings']['httpdroot']+'control" target="_blank">Administrators</a>', '<a href="'+db['settings']['httpdroot']+'control" target="_blank">Editors</a>', '<a>Users</a>']
 	if ('username' in request.cookies): 
-		if (request.cookies['username'] in db['accounts']): welcomeback='Welcome back, '+request.cookies['username']+' (group '+perms[db['accounts'][request.cookies['username']]['access_level']]+')! If not, please <a href="'+db['settings']['httpdroot']+'logout">logout</a>.<br>'
+		if (request.cookies['username'] in db['accounts']): welcomeback='Welcome back, <a>'+request.cookies['username']+'</a> (group '+perms[db['accounts'][request.cookies['username']]['access_level']]+')! If this is not you, please <a href="'+db['settings']['httpdroot']+'logout">logout</a>.<br>'
 		else: welcomeback='Hello, anonymous user! If you want <a href="'+db['settings']['httpdroot']+'login">login</a>, you`re always welcome.<br>'
 	else: welcomeback='Hello, anonymous user! If you want <a href="'+db['settings']['httpdroot']+'login">login</a>, you`re always welcome.<br>'
 	pagetpl=open(os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])),'templates/mainPg.tpl'), 'r').read()
 	linktpl=open(os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])),'templates/mainPgLink.tpl'), 'r').read()
 	links=template(linktpl, link=os.path.join(db['settings']['httpdroot'], 'allAudios'), name='All audios', itemsCount=str(len(db['audios'])))+'\n'
-	for alb in db['alist']:
-		links+=template(linktpl, link=os.path.join(db['settings']['httpdroot'], 'album', alb), name=alb, itemsCount=str(len(db['albums'][alb])))+'\n'
-	
-	return template(pagetpl, sname=db['settings']['servername'], res=os.path.join(db['settings']['httpdroot'], 'static/'), header=header, footer=footer, links=links, welcometext=welcomeback+db['settings']['welcometext'], search=genSearch('', False))
+	if alvl<=db['settings']['permissions']['view']:
+		for alb in db['alist']:
+			links+=template(linktpl, link=os.path.join(db['settings']['httpdroot'], 'album', alb), name=alb, itemsCount=str(len(db['albums'][alb])))+'\n'
+	else: links='<p style="color: red">You don`t have access to view albums list.</p>'
+	if alvl<=db['settings']['permissions']['view']: search=genSearch('', False)
+	else: search='<p style="color: red">You don`t have access to use search feature.</p>'
+	wtext=''
+	for line in db['settings']['welcometext'].splitlines(): wtext+=line+'<br />'
+	return template(pagetpl, sname=db['settings']['servername'], res=os.path.join(db['settings']['httpdroot'], 'static/'), header=header, footer=footer, links=links, welcometext=welcomeback+'<br />'+wtext, search=search)
 
 
 
@@ -231,7 +238,7 @@ def albumIndex(): return HTTPResponse(status=424, body='<h1>Error: No album spec
 			
 @route('/album/<album>') # Album display
 def albumDisplay(album):
-	auth(db['settings']['permissions']['view'])
+	alvl=auth(db['settings']['permissions']['viewAlbum'])
 	album=unquote(album)
 	pagetpl=open(os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])),'templates/audioscatalog.tpl'), 'r').read()
 	aformertpl=open(os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])),'templates/audioformer.tpl'), 'r').read()
@@ -246,11 +253,14 @@ def albumDisplay(album):
 	else:
 		a='<br /><center><h2 style="color: white">Album \"'+album+'\" does not exist :(</h2></center>'
 		pgn=('Album \"'+album+'\" not exist - '+db['settings']['servername'])
-	return template(pagetpl, pgname=pgn, content=a, title=db['settings']['servername'],res=os.path.join(db['settings']['httpdroot'], 'static/'), pllinks=genPlLinks()+'\n'+genSearch(album), header=header, footer=footer)
 
+	if alvl<=db['settings']['permissions']['view']: sppl=genPlLinks()+'\n'+genSearch(album)
+	else: sppl='<div style="position: absolute; top: 10px; right:16px; color: white; font-family: \'Tahoma\', Arial, sans-serif;"><a style="color: orange; font-family: \'Tahoma\', Arial, sans-serif;" href="'+db['settings']['httpdroot']+'login">Sign in</a> for search and albums list selector features here</div>'
+	return template(pagetpl, pgname=pgn, content=a, title=db['settings']['servername'],res=os.path.join(db['settings']['httpdroot'], 'static/'), pllinks=sppl, header=header, footer=footer)
+	
 @route('/audio<aid:int>') # Shared audio display
 def audioDisplay(aid):
-	auth(db['settings']['permissions']['view'])
+	alvl=auth(db['settings']['permissions']['referalSong'])
 	pagetpl=open(os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])),'templates/audioscatalog.tpl'), 'r').read()
 	aformertpl=open(os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])),'templates/audioformer.tpl'), 'r').read()
 	audioID=dblib.fname2id(db, aid)
@@ -276,9 +286,20 @@ def audioDisplay(aid):
 	else:
 		pgn=('Audio not exist - '+db['settings']['servername'])
 		a='<br /><center><h2 style="color: white">Audio not exist :(</h2></center>'
-	return template(pagetpl, pgname=pgn, content=a, title=db['settings']['servername'],res=os.path.join(db['settings']['httpdroot'], 'static/'), pllinks=genPlLinks(), header=header, footer=footer)
+	if alvl<=db['settings']['permissions']['view']: pllinks=genPlLinks()
+	else: pllinks='<div style="position: absolute; top: 10px; right:16px; color: white; font-family: \'Tahoma\', Arial, sans-serif;"><a style="color: orange; font-family: \'Tahoma\', Arial, sans-serif;" href="'+db['settings']['httpdroot']+'login">Sign in</a> for albums list selector feature here</div>'
+	return template(pagetpl, pgname=pgn, content=a, title=db['settings']['servername'],res=os.path.join(db['settings']['httpdroot'], 'static/'), pllinks=pllinks, header=header, footer=footer)
 
 # User API
+
+@route('/.mssinfo') # Get public server information about this MSS installation
+def getMSSInfo(): return json.dumps({
+'servername': db['settings']['servername'],
+'version': version,
+'motd': db['settings']['welcometext'],
+'permissions': db['settings']['permissions'],
+})
+
 
 @route('/getAudio') # Placeholder for case of no audio ID specified
 @route('/getAudio/')
@@ -286,7 +307,7 @@ def gaph():
 	return HTTPResponse(status=424, body='<h1>Error: Audio ID expected!</h1>')
 @route('/getAudio/<num:int>') # Audios fetching
 def server_audios(num):
-	auth(db['settings']['permissions']['view'], request.forms.get('token'))
+	auth(db['settings']['permissions']['referalSong'], request.forms.get('token'))
 	try:
 		id=dblib.fname2id(db, int(num))
 		if int(id)<0: return HTTPResponse(status=404, body='<h1>Error: Audio not found!</h1>')
@@ -296,7 +317,7 @@ def server_audios(num):
 
 @route('/getAudio', method='POST') # POST audio fetch
 def getAudioPost():
-	auth(db['settings']['permissions']['view'], request.forms.get('token'))
+	auth(db['settings']['permissions']['uapi'], request.forms.get('token'))
 	try:
 		id=dblib.fname2id(db, int(request.forms.get('id')))
 		if int(id)<0: return HTTPResponse(status=404, body='<h1>Error: Audio not found!</h1>')
@@ -306,7 +327,7 @@ def getAudioPost():
 	
 @route('/getAudio/<num:int>/<token>') # Audios fetching using token
 def server_audios(num, token):
-	auth(db['settings']['permissions']['view'], token)
+	auth(db['settings']['permissions']['uapi'], token)
 	try:
 		id=dblib.fname2id(db, int(num))
 		if int(id)<0: return HTTPResponse(status=404, body='<h1>Error: Audio not found!</h1>')
@@ -320,7 +341,7 @@ def galt():
 	return HTTPResponse(status=424, body='<h1>Error: Audio ID expected!</h1>')
 @route('/getAudio/lyrics/<num>') # Lyrics fetching
 def server_lyrics(num):
-	auth(db['settings']['permissions']['view'])
+	auth(db['settings']['permissions']['uapi'])
 	try:
 		id=dblib.fname2id(db, int(num))
 		if int(id)<0: return HTTPResponse(status=404, body='<h1>Error: Audio not found!</h1>')
@@ -331,7 +352,7 @@ def server_lyrics(num):
 	
 @route('/getAudio/lyrics', request='POST') # Lyrics fetching through POST
 def server_lyrics(num):
-	auth(db['settings']['permissions']['view'], request.forms.get('token'))
+	auth(db['settings']['permissions']['uapi'], request.forms.get('token'))
 	try:
 		id=dblib.fname2id(db, int(request.forms.get('id')))
 		if int(id)<0: return HTTPResponse(status=404, body='<h1>Error: Audio not found!</h1>')
@@ -355,29 +376,29 @@ def genplm3u8(audios, token=''):
 	return out
 @route(db['settings']['plUrl']) #  m3u8 playlist api
 def genm3upl():
-	auth(db['settings']['permissions']['view'])
+	auth(db['settings']['permissions']['uapi'])
 	return genplm3u8(db['audios'])
 @route(db['settings']['plUrl']+'/<token>') #  m3u8 playlist api using token
 def genm3upl(token):
-	auth(db['settings']['permissions']['view'], token)
+	auth(db['settings']['permissions']['uapi'], token)
 	return genplm3u8(db['audios'], token)
 @route(db['settings']['plsUrl'])
 def genm3upla(album):
-	auth(db['settings']['permissions']['view'])
+	auth(db['settings']['permissions']['uapi'])
 	album = unquote(album)
 	if album==None: album=''
 	if (album in db['alist']) or album=='': return genplm3u8(dblib.getAudios(db, album)[0])
 	else: return HTTPResponse(status=404, body='Album not found!')
 @route(db['settings']['plsUrl']+'/<token>')
 def genm3upla(album, token):
-	auth(db['settings']['permissions']['view'], token)
+	auth(db['settings']['permissions']['uapi'], token)
 	album = unquote(album)
 	if album==None: album=''
 	if (album in db['alist']) or album=='': return genplm3u8(dblib.getAudios(db, album)[0], token)
 	else: return HTTPResponse(status=404, body='Album not found!')
 @route(db['settings']['plUrl'], method='POST')
 def genm3uplalb():
-	auth(db['settings']['permissions']['view'], unquote(str(request.forms.get('token'))))
+	auth(db['settings']['permissions']['uapi'], unquote(str(request.forms.get('token'))))
 	album = request.forms.get('album')
 	if album==None: album=''
 	if (album in db['alist']) or album=='': return genplm3u8(dblib.getAudios(db, album)[0])
@@ -385,25 +406,25 @@ def genm3uplalb():
 
 @route('/api/playlist') #  JSON playlist api
 def genPlJSON():
-	auth(db['settings']['permissions']['view'])
+	auth(db['settings']['permissions']['uapi'])
 	return json.dumps(db['audios'])
 @route('/api/playlist/<album>')
 def genPlJSON(album):
-	auth(db['settings']['permissions']['view'])
+	auth(db['settings']['permissions']['uapi'])
 	album = unquote(album)
 	if album==None: album=''
 	if (album in db['alist']) or album=='': return json.dumps(dblib.getAudios(db, album)[0])
 	else: return HTTPResponse(status=404, body='Album not found!')
 @route('/api/playlist', method='POST')
 def genPlJSONalb():
-	auth(db['settings']['permissions']['view'], unquote(str(request.forms.get('token'))))
+	auth(db['settings']['permissions']['uapi'], unquote(str(request.forms.get('token'))))
 	album = request.forms.get('album')
 	if album==None: album=''
 	if (album in db['alist']) or album=='': return json.dumps(dblib.getAudios(db, album)[0])
 	else: return HTTPResponse(status=404, body='Album not found!')
 @route('/api/albums', method='POST')
 def genAlbListJSON():
-	auth(db['settings']['permissions']['view'], unquote(str(request.forms.get('token'))))
+	auth(db['settings']['permissions']['uapi'], unquote(str(request.forms.get('token'))))
 	return json.dumps(db['alist'])
 
 # Control API
@@ -473,7 +494,10 @@ def moveAudio():
 	except ValueError: return HTTPResponse(status=417, body='<h1>Error: Bad IDs fields data!</h1><script>location.replace(document.referrer);</script>')
 	album = request.forms.get('album')
 	if album==None: album=''
-	if dblib.moveAudio(db, id1, id2, album):
+	out=dblib.moveAudio(db, id1, id2, album)
+	if out<>False:
+		if album<>'': db['albums']['album']=out
+		else: db['audios']=out
 		dblib.saveDB(dbPath, db)
 		return '<h1>Success!</h1><script>location.replace(document.referrer);</script>'
 	else: return HTTPResponse(status=424, body='<h1>Request error</h1><script>location.replace(document.referrer);</script>')
@@ -552,11 +576,11 @@ def renameAlbum():
 	
 @route('/control/appearance', method='POST') # Appearance set
 def cpApppearance():
-	auth(db['settings']['permissions']['system'], request.forms.get('token'))
 	global header
 	global footer
+	auth(db['settings']['permissions']['system'], request.forms.get('token'))
 	header = str(request.forms.get('header'))
-	footer = str(request.forms.get('footer'))
+	footer=str(request.forms.get('footer'))
 	servername=str(request.forms.get('servername'))
 	wtext = str(request.forms.get('wtext'))
 	if header=='': header=dblib.newDBStruct['settings']['header']
@@ -567,8 +591,9 @@ def cpApppearance():
 	db['settings']['welcometext']=wtext
 	db['settings']['header']=header
 	db['settings']['footer']=footer
-	header=template(db['settings']['header'], servername=db['settings']['servername'], static=os.path.join(db['settings']['httpdroot'], 'static'))
 	dblib.saveDB(dbPath, db)
+	header=template('{{empty}}'+db['settings']['header'], empty='', servername=db['settings']['servername'], static=os.path.join(db['settings']['httpdroot'], 'static'))
+	footer=template('{{empty}}'+db['settings']['footer'], empty='', srvversion=str(version))
 	return '<h1>Success!</h1><script>location.replace(document.referrer);</script>'
 
 @route('/control/system', method='POST') # System config set
@@ -596,16 +621,46 @@ def cpSystem():
 	return '<h1>Success!</h1><script>location.replace(document.referrer);</script>'
 # Control Panel Web Interface
 
+@route('/control/.head')
+def ctlHead():
+	auth(db['settings']['permissions']['edit'])
+	perms=['<a>Administrators</a>', '<a>Editors</a>', '<a>Users</a>', '<a>Guests</a>']
+	if ('username' in request.cookies): 
+		if (request.cookies['username'] in db['accounts']): welcomeback='Welcome back, <a>'+request.cookies['username']+'</a> (group '+perms[db['accounts'][request.cookies['username']]['access_level']]+')! If this is not you, please <a href="'+db['settings']['httpdroot']+'logout">logout</a>.<br>'
+		else: welcomeback='Hello, anonymous user! If you want <a href="'+db['settings']['httpdroot']+'login">login</a>, you`re always welcome.<br>'
+	else: welcomeback='Hello, anonymous user! If you want <a href="'+db['settings']['httpdroot']+'login">login</a>, you`re always welcome.<br>'	
+	return template(open(os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])),'templates/head.tpl'), 'r').read(), srvver=version, header=header, accountinfo=welcomeback)
+
+@route('/control/.menu')
+def ctlMenu():
+	alvl=auth(db['settings']['permissions']['edit'])
+	if alvl>=db['settings']['permissions']['system']:
+		admbtns=''
+	else:
+		admbtns='''<h3>Server Settings</h3>
+<a href="'''+db['settings']['httpdroot']+'''control/appearance" target='main'>Appearance</a><br />
+<a href="'''+db['settings']['httpdroot']+'''control/accounts/" target='main'>Accounts ('''+str(len(db['accounts']))+''') &<br />Access control</a><br />
+<a href="'''+db['settings']['httpdroot']+'''control/system" target='main'>System Settings</a><br />'''
+	audiosCtlLinks=''
+	n=0
+	for a in db['alist']:
+		audiosCtlLinks+='''<a href="'''+db['settings']['httpdroot']+'''control/albums/'''+str(n)+'''" target='main'>'''+a+''' ('''+str(len(db['albums'][a]))+''')</a><br />'''
+		n+=1
+	return template(open(os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])),'templates/menu.tpl'), 'r').read(), root=db['settings']['httpdroot'], admbtns=admbtns, audiosCtlLinks=audiosCtlLinks, at=str(len(db['audios'])), al=str(len(db['alist'])))
+
 @route('/control')
 @route('/control/')
 def controlIndex():
-	auth(db['settings']['permissions']['edit'], request.forms.get('token'))
-	perms=['Administrators', 'Editors', 'Users', 'Guests']
-	if ('username' in request.cookies): 
-		if (request.cookies['username'] in db['accounts']): welcomeback='Welcome back, '+request.cookies['username']+' (group '+perms[db['accounts'][request.cookies['username']]['access_level']]+')! If not, please <a href="'+db['settings']['httpdroot']+'logout">logout</a>.<br>'
-		else: welcomeback='Hello, anonymous user! If you want <a href="'+db['settings']['httpdroot']+'login">login</a>, you`re always welcome.<br>'
-	else: welcomeback='Hello, anonymous user! If you want <a href="'+db['settings']['httpdroot']+'login">login</a>, you`re always welcome.<br>'
-	return template(open(os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])),'templates/control.tpl'), 'r').read(), httproot=db['settings']['httpdroot'], cdw=os.path.join(db['settings']['httpdroot'], 'control'), fsname=db['settings']['servername'], footer=footer, asize=str(float(get_size(db['settings']['musicdir'])*10/1024/1024)/10), acount=str(len(dblib.getAudios(db)[0])),dsize=str(float(os.path.getsize('msync.db')*10/1024)/10), bcount=str(len(db['albums'])), welcomeback=welcomeback)
+	auth(db['settings']['permissions']['edit'])
+	return template(open(os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])),'templates/cproot.tpl'), 'r').read(), sname=db['settings']['servername'], root=db['settings']['httpdroot'])
+
+@route('/control/status')
+def controlStatus():
+	alvl=auth(db['settings']['permissions']['edit'])
+	if alvl<=db['settings']['permissions']['system']: dbrel='<form action="'+db['settings']['httpdroot']+'control/reload" method="post" enctype="multipart/form-data"><input type="submit" value="Reload DB from disk" /></form>'
+	else: dbrel=''
+	return template(open(os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])),'templates/status.tpl'), 'r').read(), srvver=version, sname=db['settings']['servername'], ta=str(len(db['audios'])), albst=str(len(db['alist'])), asz=str(float(get_size(db['settings']['musicdir'])*10/1024/1024)/10), dsize=str(float(os.path.getsize(dbPath)*10/1024)/10), dbrel=dbrel, root=db['settings']['httpdroot'])
+
 
 @route('/control/audios')
 @route('/control/audios/')
@@ -707,7 +762,7 @@ def cAlbum(aid):
 @route('/control/appearance')
 def cAppearance():
 	auth(db['settings']['permissions']['system'], request.forms.get('token'))
-	return template(open(os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])),'templates/controlAppearance.tpl'), 'r').read(), cproot=os.path.join(db['settings']['httpdroot'], 'control'), fsname=db['settings']['servername'], header=db['settings']['header'], footer=db['settings']['footer'], purl=os.path.join(db['settings']['httpdroot'], 'control/appearance'), ffooter=footer, servername=db['settings']['servername'], wtext=db['settings']['welcometext'])
+	return template(open(os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])),'templates/controlAppearance.tpl'), 'r').read(), cproot=os.path.join(db['settings']['httpdroot'], 'control'), fsname=db['settings']['servername'], header=db['settings']['header'], footer=footer, purl=os.path.join(db['settings']['httpdroot'], 'control/appearance'), ffooter=db['settings']['footer'], servername=db['settings']['servername'], wtext=db['settings']['welcometext'])
 
 @route('/control/system')
 def cSystem():
@@ -724,28 +779,59 @@ def cAccounts():
 	
 	systm=['', '', '', '']
 	systm[db['settings']['permissions']['system']]=' selected'
-	permCtl='''<form action="'''+db['settings']['httpdroot']+'''control/chPerms" method="post" enctype="multipart/form-data">System control permissions: <select name="system">
+	permCtl='''<table><form action="'''+db['settings']['httpdroot']+'''control/chPerms" method="post" enctype="multipart/form-data"><tr>
+		<td style='color: orange'>System control permissions:</td>
+		<td><select name="system">
 <option value="0"'''+systm[0]+'''>Administrators</option>
 <option value="1"'''+systm[1]+'''>Editors</option>
 <option value="2"'''+systm[2]+'''>Users</option>
 <option value="3"'''+systm[3]+'''>Guests</option>
-</select><br>\n'''
+</select></td></tr>\n'''
 	edit=['', '', '', '']
 	edit[db['settings']['permissions']['edit']]=' selected'
-	permCtl+='''Content edit permissions: <select name="edit">
+	permCtl+='''<tr><td style='color: orange'>Content edit permissions:</td>
+	<td><select name="edit">
 <option value="0"'''+edit[0]+'''>Administrators</option>
 <option value="1"'''+edit[1]+'''>Editors</option>
 <option value="2"'''+edit[2]+'''>Users</option>
 <option value="3"'''+edit[3]+'''>Guests</option>
-</select><br>\n'''
+</select></td></tr>\n'''
+	uapi=['', '', '', '']
+	uapi[db['settings']['permissions']['uapi']]=' selected'
+	permCtl+='''<tr><td style='color: orange'>User-level WebAPI & M3U playlist generator usage:</td>
+	<td><select name="uapi">
+<option value="0"'''+uapi[0]+'''>Administrators</option>
+<option value="1"'''+uapi[1]+'''>Editors</option>
+<option value="2"'''+uapi[2]+'''>Users</option>
+<option value="3"'''+uapi[3]+'''>Guests</option>
+</select></td></tr>\n'''
 	view=['', '', '', '']
 	view[db['settings']['permissions']['view']]=' selected'
-	permCtl+='''View permissions: <select name="view">
+	permCtl+='''<tr><td style='color: orange'>All audios view & search & albums list permission: </td>
+	<td><select name="view">
 <option value="0"'''+view[0]+'''>Administrators</option>
 <option value="1"'''+view[1]+'''>Editors</option>
 <option value="2"'''+view[2]+'''>Users</option>
 <option value="3"'''+view[3]+'''>Guests</option>
-</select><br /><input type="submit" value="Change permissions" /></form><br>\n'''
+</select></td></tr>\n'''
+	viewAlbum=['', '', '', '']
+	viewAlbum[db['settings']['permissions']['viewAlbum']]=' selected'
+	permCtl+='''<tr><td style='color: orange'>View albums:</td>
+	<td><select name="viewAlbum">
+<option value="0"'''+viewAlbum[0]+'''>Administrators</option>
+<option value="1"'''+viewAlbum[1]+'''>Editors</option>
+<option value="2"'''+viewAlbum[2]+'''>Users</option>
+<option value="3"'''+viewAlbum[3]+'''>Guests</option>
+</select></td></tr>\n'''
+	referalSong=['', '', '', '']
+	referalSong[db['settings']['permissions']['referalSong']]=' selected'
+	permCtl+='''<tr><td style='color: orange'>View single song by shared link:</td>
+	<td><select name="referalSong">
+<option value="0"'''+referalSong[0]+'''>Administrators</option>
+<option value="1"'''+referalSong[1]+'''>Editors</option>
+<option value="2"'''+referalSong[2]+'''>Users</option>
+<option value="3"'''+referalSong[3]+'''>Guests</option>
+</select></td></tr></table><input type="submit" value="Change permissions" /></form><br>\n'''
 	def genActs(account):
 		a='<p align=left style="form { display: inline; };">'
 		a+=template('<form></form><a href="{{r}}{{num}}"><button>E</button></a>', r=os.path.join(db['settings']['httpdroot'], 'control/accounts/'), num=account)
@@ -793,18 +879,25 @@ def chPerms():
 	try:
 		systm = int(request.forms.get('system'))
 		edit = int(request.forms.get('edit'))
+		uapi = int(request.forms.get('uapi'))
 		view = int(request.forms.get('view'))
-		if systm<0 or edit<0 or view<0 or systm>3 or edit>3 or view>3: raise NameError, 'e'
+		viewAlbum = int(request.forms.get('viewAlbum'))
+		referalSong = int(request.forms.get('referalSong'))
+		
+		if systm<0 or edit<0 or uapi<0 or view<0 or viewAlbum<0 or referalSong<0 or systm>3 or edit>3 or uapi>3 or view>3 or viewAlbum>3 or referalSong>3: raise NameError, 'e'
 		db['settings']['permissions']['system']=systm
 		db['settings']['permissions']['edit']=edit
+		db['settings']['permissions']['uapi']=uapi
 		db['settings']['permissions']['view']=view
+		db['settings']['permissions']['viewAlbum']=viewAlbum
+		db['settings']['permissions']['referalSong']=referalSong
 		dblib.saveDB(dbPath, db)
 		return '<h1>Success!</h1><script>location.replace(document.referrer);</script>'
 	except: return HTTPResponse(status=424, body='<h1>Request error</h1><script>location.replace(document.referrer);</script>')
 
 @route('/control/accounts/<account>', method='GET')
 def cEditAccount(account):
-	auth(db['settings']['permissions']['edit'], request.forms.get('token'))
+	auth(db['settings']['permissions']['system'], request.forms.get('token'))
 	if (account in db['accounts']):
 		pru=account
 		group=['', '', '', '']
@@ -867,7 +960,7 @@ def searchFrontEnd(query):
 	else: 
 		a='<br /><center><h2 style="color: white">Nothing was found by your request :(</h2>\n'+genSearch('', False, query)+'</center>'
 		pllinks=genPlLinks()
-	return template(pagetpl, pgname=('Search results for "'+query+'"'+db['settings']['servername']), content=a, title=db['settings']['servername'],res=os.path.join(db['settings']['httpdroot'], 'static/'), pllinks=pllinks, header=header, footer=footer)
+	return template(pagetpl, pgname=('Search results for "'+query+'" - '+db['settings']['servername']), content=a, title=db['settings']['servername'],res=os.path.join(db['settings']['httpdroot'], 'static/'), pllinks=pllinks, header=header, footer=footer)
 
 @route('/search/<album>/<query>') # Search in album
 def searchAlbFrontEnd(query, album):
@@ -909,4 +1002,5 @@ def mistake(code):
 
 if __name__ == "__main__":
 	print('Starting up..')
-	run(host=db['settings']['httpdip'], port=int(db['settings']['httpdport']), server='paste')
+	run(host=db['settings']['httpdip'], 
+port=int(db['settings']['httpdport']), server='paste')

@@ -8,6 +8,7 @@
 <style>
 p { font-family: 'Tahoma', Arial, sans-serif; }
 body {
+		font-family: 'Tahoma', Arial, sans-serif;
 		color: white;
 	    background: #333;
 }
@@ -28,8 +29,9 @@ a:hover {
 </style>
 <h1 style="color: white; font-family: 'Tahoma', Arial, sans-serif;">{{!header}}</h1>
 <p>{{!welcometext}}</p>
+You can choose album (playlist) from list below:<br />
 {{!links}}
-Or you can search something here: {{!search}}
+Or search something here: {{!search}}
 <div id="bottomdiv">{{!footer}}</div>
 </body>
 </html>

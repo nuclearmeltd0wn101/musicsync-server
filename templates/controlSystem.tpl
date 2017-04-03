@@ -6,28 +6,39 @@
 	<title>Configure system - {{fsname}}</title>
 </head>
 <body>
-<h1>Configure system - <a href='{{cproot}}'>Control panel</a></h1>
-<form action="{{purl}}" method="post" enctype="multipart/form-data">
-<h3>System & Web Interface</h3>
-Server IP: <input type="text" name="httpdip" value="{{httpdip}}" size=120 /><br>
-Server Port: <input type="text" name="httpdport" value="{{httpdport}}" size=120 /><br>
-Server Root URL: <input type="text" name="httpdroot" value="{{httpdroot}}" size=120 /><br>
-Audios dir: <input type="text" name="musicdir" value="{{musicdir}}" size=120 /><br>
-<h3>M3U Playlists Generator</h3>
-M3U all audios playlist URL: <input type="text" name="plurl" value="{{plurl}}" size=120 /><br>
-<br>
-M3U albums playlist URL template: <input type="text" name="plsurl" value="{{plsurl}}" size=120 /><br>
-Varribles: album - album name<br>
-<p style='color:red'>Notice: server restart required to apply changes, made on this page!</p>
-<input type="submit" value="Modify system config" />
-</form>
 <style>
-#bottomdiv{
- font-family: 'Tahoma', Arial, sans-serif;
- position: absolute;
- bottom: 0px;
+body {
+		color: white;
+	    background: #333;
+		font-family: 'Tahoma', Arial, sans-serif;
+}
+a {
+	color: orange;
+	font-family: 'Tahoma', Arial, sans-serif;
+}
+a:hover {
+	color: lightgreen;
+	font-family: 'Tahoma', Arial, sans-serif;
 }
 </style>
-<div id="bottomdiv">{{!footer}}</div>
+<h1>Configure system</h1>
+<table>
+<form action="{{purl}}" method="post" enctype="multipart/form-data">
+<h3>System & Web Interface</h3>
+<tr><td style='color: orange'>Server IP <a style='color:red'>*</a> </td><td><input type="text" name="httpdip" value="{{httpdip}}" size=120 /></td></tr>
+<tr><td style='color: orange'>Server Port <a style='color:red'>*</a></td> <td><input type="text" name="httpdport" value="{{httpdport}}" size=120 /></td></tr>
+<tr><td style='color: orange'>Server Root URL: </td><td><input type="text" name="httpdroot" value="{{httpdroot}}" size=120 /></td></tr>
+<tr><td style='color: orange'>Audios dir: </td><td><input type="text" name="musicdir" value="{{musicdir}}" size=120 /></td></tr>
+</table>
+<h3>M3U Playlists Generator</h3>
+<table>
+<tr><td style='color: orange'>M3U all audios playlist URL <a style='color:red'>*</a> <td><input type="text" name="plurl" value="{{plurl}}" size=120 /></td></tr>
+<br>
+<tr><td style='color: orange'>M3U albums playlist URL template <a style='color:red'>*</a></td> <td><input type="text" name="plsurl" value="{{plsurl}}" size=120 /></td></tr>
+</table>
+Varribles: album - album name<br>
+<p style='color:red'>Notice: server restart required to apply changes for values, marked with "*".</p>
+<input type="submit" value="Modify system config" />
+</form>
 </body>
 </html>

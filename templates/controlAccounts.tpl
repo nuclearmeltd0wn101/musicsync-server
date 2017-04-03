@@ -6,8 +6,25 @@
 	<title>Accounts & access control management - {{fsname}}</title>
 </head>
 <body>
-<h1>Accounts & access control management - <a href='{{cproot}}'>Control panel</a></h1>
+<style>
+body {
+		color: white;
+	    background: #333;
+		font-family: 'Tahoma', Arial, sans-serif;
+}
+a {
+	color: orange;
+	font-family: 'Tahoma', Arial, sans-serif;
+}
+a:hover {
+	color: lightgreen;
+	font-family: 'Tahoma', Arial, sans-serif;
+}
+</style>
+<h1>Accounts & access control</h1>
+<h2>Permissions control</h2>
 {{!permCtl}}
+<h2>Accounts management</h2>
 <form action="{{cproot}}/createAccount" method="post" enctype="multipart/form-data">Create new account: <input type="text" name="username" placeholder='Username'/>
 <input type="password" name="password" placeholder='Password'/>
 <select name="access_level">

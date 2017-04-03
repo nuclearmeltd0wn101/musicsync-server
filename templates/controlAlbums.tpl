@@ -6,7 +6,22 @@
 	<title>Albums management - {{fsname}}</title>
 </head>
 <body>
-<h1>Albums management - <a href='{{cproot}}'>Control panel</a></h1>
+<style>
+body {
+		color: white;
+	    background: #333;
+		font-family: 'Tahoma', Arial, sans-serif;
+}
+a {
+	color: orange;
+	font-family: 'Tahoma', Arial, sans-serif;
+}
+a:hover {
+	color: lightgreen;
+	font-family: 'Tahoma', Arial, sans-serif;
+}
+</style>
+<h1>Albums management</h1>
 <form action="{{cproot}}/addAlbum" method="post" enctype="multipart/form-data">Create new: <input type="text" name="album" placeholder='Album name'/><input type="submit" value="Create album" /></form>
 <br />
 <style>

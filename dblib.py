@@ -4,7 +4,33 @@ import sys
 reload(sys)  
 sys.setdefaultencoding('utf8')
 
-newDBStruct={'audios': [], 'alist': [], 'albums': {}, 'alist':[],  'settings': {'servername': 'Someone`s Music Storage', 'httpdip': '127.0.0.1', 'httpdport': '8084', 'musicdir': 'audios', 'httpdroot': 'http://localhost:8084/', 'header': '''{{servername}}''', 'footer': '''&copy 2017 <a style="color: orange" href="https://melnikovsm.tk" target="_blank">MelnikovSM</a>. Powered by <a style="color: orange" href='https://github.com/MelnikovSM/musicsync-server' target='_blank'>MusicSync Server</a>''', 'plUrl': '/playlist.m3u8', 'plsUrl': '/pl/<album>.m3u8', 'welcometext': '''Welcome to new MusicSync Server installation!<br />\nThis text may be changed at "Appearance" realm of control panel.<br />\nPlease choose album below to view audio collection.<br />\n''', 'permissions': {'view': 3, 'edit': 1, 'system': 0}}, 'accounts': {}}
+newDBStruct={
+'audios': [], # Audios index list
+'albums': {}, # Albums content dict
+'alist':[],   # Albums index list
+'settings': {
+	'servername': 'Someone`s Music Storage', # Default server name
+	'httpdip': '127.0.0.1', # Default Web-Server bind IP
+	'httpdport': '8084', # Default Web-Server port
+	'musicdir': 'audios', # Default audios dir
+	'httpdroot': 'http://localhost:8084/', # Default portal root URL
+	'header': '''{{servername}}''', # Default header HTML
+	'footer': '''&copy 2017 <a style="color: orange" href="https://melnikovsm.tk" target="_blank">MelnikovSM</a>. Powered by <a style="color: orange" href='https://github.com/MelnikovSM/musicsync-server' target='_blank'>MusicSync Server</a> version {{srvversion}}''', # Default footer HTML
+	'plUrl': '/playlist.m3u8', 'plsUrl': '/pl/<album>.m3u8', # URL to M3U playlists
+	'welcometext': '''Welcome to new MusicSync Server installation!
+This text may be changed at "Appearance" realm of control panel.
+Please choose album below to view audio collection.''', # Default home page welcome text
+	'permissions': { # Default access permissions
+		'referalSong': 3, # Display single song from link (WebIf only) (by default allowed for guests and higher)
+		'viewAlbum': 3, # Display album (WebIf only) (by default allowed for guests and higher)
+		'view': 3, # View all audios, albums list, use search feature (default: guests and higher)
+		'uapi': 2, # user-level WebAPI access, M3U generator (default: users and higher)
+		'edit': 1, # WebIf and WebAPI access to content editing and everything, listed higher (default: editors and administrators)
+		'system': 0 # WebIf and WebAPI access to server control and everything, listed higher (default: administrators only)
+	}
+	},
+	'accounts': {}
+}
 
 def saveDB(dbPath,db):
 	output = open(dbPath, 'wb')
@@ -124,19 +150,25 @@ def moveAudio(db, id1, id2, album=''):
 	id2=int(id2)
 	if album=='': dest=db['audios']
 	else: dest=db['albums'][album]
-	if id1>=0:
+	if id1>=0 and id1<len(dest):
 		if id2<0:
 			if id2==-1 or id2==-2:
 				if id2==-1 and id1<(len(dest)-1): # move id1 below
 					dest[id1], dest[id1+1] = dest[id1+1], dest[id1]
-					return True
+					return dest
 				else: return False
 				if id2==-2 and id1>0: # move id1 higher
 					dest[id1], dest[id1-1] = dest[id1-1], dest[id1]
-					return True
+					return dest
 				else: return False
 			else: return False
-		else: return False
+		else:
+			if id2<len(dest):
+				s=dest.pop(id1)
+				dest=dest[:id2]+[s]+dest[id2:]
+				return dest
+			else: return False
+			
 	else: return False
 
 def modifyAudio(db, id, artist, title, lyrics=None):

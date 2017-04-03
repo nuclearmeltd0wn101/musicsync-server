@@ -6,7 +6,22 @@
 	<title>Audios management - {{fsname}}</title>
 </head>
 <body>
-<h1>Audios management - <a href='{{cproot}}'>Control panel</a></h1>
+<style>
+body {
+		color: white;
+	    background: #333;
+		font-family: 'Tahoma', Arial, sans-serif;
+}
+a {
+	color: orange;
+	font-family: 'Tahoma', Arial, sans-serif;
+}
+a:hover {
+	color: lightgreen;
+	font-family: 'Tahoma', Arial, sans-serif;
+}
+</style>
+<h1>Audios management</h1>
 <form action="{{cproot}}/upload" method="post" enctype="multipart/form-data" name='uploadNew'>Upload new: <input type="text" name="artist" placeholder='Artist'/> <input type="text" name="title" placeholder='Title'/> <input type="file" name="audioFile" /><input type="submit" value="Upload" /></form>
 <br />
 <style>
