@@ -634,7 +634,7 @@ def ctlHead():
 @route('/control/.menu')
 def ctlMenu():
 	alvl=auth(db['settings']['permissions']['edit'])
-	if alvl>=db['settings']['permissions']['system']:
+	if alvl>db['settings']['permissions']['system']:
 		admbtns=''
 	else:
 		admbtns='''<h3>Server Settings</h3>
