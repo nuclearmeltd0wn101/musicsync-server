@@ -22,5 +22,8 @@ All audios
 ![globalsearchshow_0_o](https://cloud.githubusercontent.com/assets/16162717/23338721/2503dd7c-fc34-11e6-8da4-66e7ac809ecc.png)
 Search
 
-![cphomepage_0_o](https://cloud.githubusercontent.com/assets/16162717/23338730/603a4aa2-fc34-11e6-94c6-5080cde69db1.png)
+![cphomepage_0_o](https://cloud.githubusercontent.com/assets/16162717/24770337/0de8e5c0-1b23-11e7-80a3-158f8e8660c0.PNG)
 Control panel home page
+
+![cphomepage_0_o](https://cloud.githubusercontent.com/assets/16162717/24770538/b16c507e-1b23-11e7-94b0-1b18994a1148.PNG)
+Accounts & access control: Simple and flexible permissions configuration.
