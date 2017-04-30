@@ -8,7 +8,7 @@
 
 Dependenices: Python 2.7 with standard modules + bottle and paste
 
-#Screenshots:
+# Screenshots:
 
 ![authshow_0_o](https://cloud.githubusercontent.com/assets/16162717/23338704/d7a024dc-fc33-11e6-9e45-86d7f35d0bc1.png)
 Authentication
