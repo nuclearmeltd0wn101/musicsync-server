@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 dbPath='msync.db' # Path to database file
-version=170405 # Server version, don`t touch for proper work
+version=170501 # Server version, don`t touch for proper functioning
 print('MusicSync Server version '+str(version)+'\nCopyright (C) 2017 MelnikovSM')
 import pickle, os, sys, json, hashlib, random, string
 import dblib
@@ -8,6 +8,7 @@ from bottle import route, run, template, static_file, error, request, HTTPRespon
 from urllib2 import unquote
 from copy import copy
 from getpass import getpass
+from base64 import b64encode, b64decode
 reload(sys)  
 sys.setdefaultencoding('utf8')
 
@@ -415,6 +416,17 @@ def genPlJSON(album):
 	if album==None: album=''
 	if (album in db['alist']) or album=='': return json.dumps(dblib.getAudios(db, album)[0])
 	else: return HTTPResponse(status=404, body='Album not found!')
+@route('/api/playlist/$aau/<token>') #  JSON playlist api
+def genPlJSON(token):
+	auth(db['settings']['permissions']['uapi'], token)
+	return json.dumps(db['audios'])
+@route('/api/playlist/<album>/<token>')
+def genPlJSON(album, token):
+	auth(db['settings']['permissions']['uapi'], token)
+	album = unquote(album)
+	if album==None: album=''
+	if (album in db['alist']) or album=='': return json.dumps(dblib.getAudios(db, album)[0])
+	else: return HTTPResponse(status=404, body='Album not found!')
 @route('/api/playlist', method='POST')
 def genPlJSONalb():
 	auth(db['settings']['permissions']['uapi'], unquote(str(request.forms.get('token'))))
@@ -666,25 +678,9 @@ def controlStatus():
 @route('/control/audios/')
 def cAudios():
 	auth(db['settings']['permissions']['edit'], request.forms.get('token'))
-	a=''
-	def genActs(id):
-		a='<p style="form { display: inline; }">'
-		if id<(len(dblib.getAudios(db)[0])-1): a+=template('<form action="{{purl}}" name=\'mvDown{{id}}\' method="post"><input type="hidden" name="id1" value="{{id}}" align="right" /><input type="hidden" name="id2" value="-1" /><input type=\'submit\' value=\'v\' align=top/></form>', purl=os.path.join(db['settings']['httpdroot'], 'control/moveAudio'), id=id) 
-		if id>0: a+=template('<form action="{{purl}}" name=\'mvUp{{fid}}\' method="post"><input type="hidden" name="id1" value="{{id}}" /><input type="hidden" name="id2" value="-1" /><input type=\'submit\' value=\'^\'/></form>', purl=os.path.join(db['settings']['httpdroot'], 'control/moveAudio'), id=id-1, fid=id) 
-		a+=template('<form></form><a href="{{r}}{{id}}" target="_blank"><button>E</button></a>', r=os.path.join(db['settings']['httpdroot'], 'control/audios/'), id=id)
-		a+=template('<form onSubmit="if(!confirm(\'Are you sure want remove this audio? This action is irreversible.\')){return false;}" action="{{purl}}" name=\'del{{id}}\' method="post"><input type="hidden" name="id" value="{{id}}" /><input type=\'submit\' value=\'X\'/></form>', purl=os.path.join(db['settings']['httpdroot'], 'control/delAudio'), id=id) 
-		a+='</p>'
-		return a
-	for audio in dblib.getAudios(db)[0]:
-		id=dblib.fname2id(db, audio['filename'])
-		a+=template('''	<tr>
-	<td width="50px">{{id}}</td>
-		<td width="80px">{{fname}}</td>
-		<td>{{artist}}</td>
-		<td>{{title}}</td>
-		<td width="100px"><div align="right" style="height: 20px; margin: 0;">{{!acts}}</div></td>
-	</tr>''',id=str(id), fname=audio['filename'], artist=audio['artist'], title=audio['title'], acts=genActs(id))
-	return template(open(os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])),'templates/controlAudios.tpl'), 'r').read(), cproot=os.path.join(db['settings']['httpdroot'], 'control'), fsname=db['settings']['servername'], alist=a, footer=footer, res=os.path.join(db['settings']['httpdroot'], 'static/'))
+	if ('token' in request.cookies): token=request.cookies['token']
+	else: token=''
+	return template(open(os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])),'templates/controlAudios.tpl'), 'r').read(), rootUrl=db['settings']['httpdroot'], fsname=db['settings']['servername'], footer=footer, res=os.path.join(db['settings']['httpdroot'], 'static/'), token=token)
 
 @route('/control/audios/<id>', method='GET')
 def cEditAudio(id):
@@ -733,14 +729,8 @@ def cAlbum(aid):
 	except: return HTTPResponse(status=404, body='Album not found!')
 	if (aid>=0) and (aid<=len(db['alist'])):
 		album=db['alist'][aid]
-		a=''
-		def genActs(id, album, fname):
-			a='<p style="form { display: inline; }">'
-			if id<(len(dblib.getAudios(db, album)[0])-1): a+=template('<form action="{{purl}}" name=\'mvDown{{id}}\' method="post"><input type="hidden" name="album" value="{{albname}}" /><input type="hidden" name="id1" value="{{id}}"/><input type="hidden" name="id2" value="-1" /><input type=\'submit\' value=\'v\' /></form>', purl=os.path.join(db['settings']['httpdroot'], 'control/moveAudio'), id=id, albname=album)
-			if id>0: a+=template('<form action="{{purl}}" name=\'mvUp{{fid}}\' method="post"><input type="hidden" name="album" value="{{albname}}" /><input type="hidden" name="id1" value="{{id}}" /><input type="hidden" name="id2" value="-1" /><input type=\'submit\' value=\'^\'/></form>', purl=os.path.join(db['settings']['httpdroot'], 'control/moveAudio'), id=id-1, fid=id, albname=album) 
-			a+=template('<form onSubmit="if(!confirm(\'Are you sure want delete this album entry? This action is irreversible.\')){return false;}" action="{{purl}}" name=\'del{{id}}\' method="post"><input type="hidden" name="album" value="{{albname}}" /><input type="hidden" name="id" value="{{id}}" /><input type=\'submit\' value=\'X\'/></form>', purl=os.path.join(db['settings']['httpdroot'], 'control/albumDel'), id=fname, albname=album) 
-			a+='</p>'
-			return a
+		if ('token' in request.cookies): token=request.cookies['token']
+		else: token=''
 		sf='<input type="hidden" name="album" value="'+album+'" />\n<select name=\'id\'>'
 		n=0
 		for audio in db['audios']:
@@ -748,16 +738,7 @@ def cAlbum(aid):
 				sf+='<option value=\''+audio['filename']+'\' >'+str((n+1))+'. '+audio['artist']+' - '+audio['title']+'</option>\n'
 				n+=1
 		sf+='</select>'
-		id=0
-		for audio in dblib.getAudios(db, album)[0]:
-			a+=template('''	<tr>
-		<td width="50px">{{id}}</td>
-			<td>{{artist}}</td>
-			<td>{{title}}</td>
-			<td width="100px"><div align="right" style="height: 20px; margin: 0;">{{!acts}}</div></td>
-		</tr>''',id=str(id), artist=audio['artist'], title=audio['title'], acts=genActs(id, album, audio['filename']))
-			id+=1
-		return template(open(os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])),'templates/controlAlbum.tpl'), 'r').read(), cproot=os.path.join(db['settings']['httpdroot'], 'control'), fsname=db['settings']['servername'], alist=a, footer=footer, res=os.path.join(db['settings']['httpdroot'], 'static/'), albname=album, addlist=sf)
+		return template(open(os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])),'templates/controlAlbum.tpl'), 'r').read(), rootUrl=db['settings']['httpdroot'], fsname=db['settings']['servername'], res=os.path.join(db['settings']['httpdroot'], 'static/'), albname=album, addlist=sf, token=token)
 
 @route('/control/appearance')
 def cAppearance():

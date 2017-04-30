@@ -24,8 +24,8 @@ a:hover {
 <h1>Edit audio "{{pra}} - {{prt}}"</h1>
 <form action="{{purl}}" method="post" enctype="multipart/form-data">
 <input type="hidden" name="id" value="{{id}}" />
-New Artist:  <input type="text" name="artist" value="{{pra}}" /><br>
-New Title: <input type="text" name="title" value="{{prt}}" /><br>
+New Artist:  <input size="40" type="text" name="artist" value="{{pra}}" /><br>
+New Title: <input size="41" type="text" name="title" value="{{prt}}" /><br>
 New lyrics:<br>
 <textarea rows="24" cols="42" name="lyrics">{{lyrics}}</textarea><br>
 <input type="submit" value="Modify audio" />

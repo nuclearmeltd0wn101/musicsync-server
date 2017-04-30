@@ -1,5 +1,9 @@
 MusicSync Server changelog:
 
+1 May 2017 [20170501]:
+
+* Audios & album control pages migrated to JS entries load
+
 5 Apr 2017 [20170405]:
 
 * Minor bugfixes
