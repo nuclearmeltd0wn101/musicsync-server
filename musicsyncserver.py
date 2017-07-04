@@ -243,7 +243,7 @@ def searchFrontEnd(query):
 	for audio in src:
 		if (query==audio['artist']):
 			result.append(i)
-			i+=1
+		i+=1
 	audios=[]
 	for id in result: audios.append(src[id])
 	pagetpl=open(os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])),'templates/audioscatalog.tpl'), 'r').read()
@@ -253,7 +253,7 @@ def searchFrontEnd(query):
 	else: 
 		a='<br /><center><h2 style="color: white">Artist "'+query+'" not exist or have no audios, stored on this server :(</h2>\n'+genSearch('', False, query)+'</center>'
 		pllinks=genPlLinks()
-	return template(pagetpl, pgname=('Artist "'+query+'" audios ('+str(i)+') - '+db['settings']['servername']), content=a, title=db['settings']['servername'],res=os.path.join(db['settings']['httpdroot'], 'static/'), pllinks=pllinks, header=header, footer=footer)
+	return template(pagetpl, pgname=('Artist "'+query+'" audios ('+str(len(result))+') - '+db['settings']['servername']), content=a, title=db['settings']['servername'],res=os.path.join(db['settings']['httpdroot'], 'static/'), pllinks=pllinks, header=header, footer=footer)
 
 @route('/allAudios') # All audios
 def allAudiosDisplay():
