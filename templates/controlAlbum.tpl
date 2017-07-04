@@ -24,6 +24,10 @@ a:hover {
 <body>
 <h1>Edit album "{{albname}}"</h1>
 <form action="{{!rootUrl}}control/albumRename" method="post" enctype="multipart/form-data" name='renameAlbum'><input type="hidden" name="old" value="{{albname}}" />Rename album: <input type="text" name="new" value='{{albname}}'/><input type="submit" value="Rename" /></form><br>
+Auto-sort album
+<form onSubmit="if(!confirm('Are you sure want sort album descending? This action is IRREVERTABLE!')){return false;}" action="{{!rootUrl}}control/sortAlbum" method="post" enctype="multipart/form-data" name='sortAlbum'><input type="hidden" name="album" value="{{albname}}" /><input type="hidden" name="descending" value="1" /><input type="submit" value="Descending" /></form>
+<form onSubmit="if(!confirm('Are you sure want sort album ascending? This action is IRREVERTABLE!')){return false;}" action="{{!rootUrl}}control/sortAlbum" method="post" enctype="multipart/form-data" name='sortAlbum'><input type="hidden" name="album" value="{{albname}}" /><input type="hidden" name="descending" value="0" /><input type="submit" value="Ascending" /></form>
+<br>
 <form action="{{!rootUrl}}control/albumAdd" method="post" enctype="multipart/form-data">{{!addlist}}<input type="submit" value="Add to album" /></form>
 <style>
 form {display: inline-block;}

@@ -36,6 +36,10 @@ a:hover {
 		<td>{{ta}} (<font color='orange'>{{asz}} MB</font>)</td>
 	</tr>
 	<tr>
+		<td style='color: orange'>Total <a href='{{root}}artists' target='_blank'>artists</a>: </td>
+		<td>{{artst}}</td>
+	</tr>
+	<tr>
 		<td style='color: orange'>Total albums: </td>
 		<td>{{albst}}</td>
 	</tr>
@@ -45,8 +49,8 @@ a:hover {
 	</tr>
 </table>
 <h2>Quick actions</h2>
-<p>{{!dbrel}}</p>
 <h3>Quick upload</h3>
 <form action="{{root}}control/upload" method="post" enctype="multipart/form-data" name='uploadNew'><input type="text" name="artist" placeholder='Artist'/> <input type="text" name="title" placeholder='Title'/> <input type="file" name="audioFile" /><input type="submit" value="Upload" /></form>
+<p>{{!dbrel}}</p>
 </body>
 </html>

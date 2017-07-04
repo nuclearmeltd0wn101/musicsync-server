@@ -36,6 +36,6 @@ a:hover {
 </style>
 <h1 style="color: white; font-family: 'Tahoma', Arial, sans-serif;">{{!header}}</h1>
 <div id="topdiv">{{!accountinfo}}</div>
-<div id="bottomdiv">&copy 2017 <a href='https://melnikovsm.tk' target='_blank'>MelnikovSM</a>. Powered by <a href='http://musicsync.melnikovsm.tk' target='_blank'>MusicSync Server</a> version {{srvver}}</div>
+<div id="bottomdiv">&copy 2017 <a href='https://blog.nm101.tk' target='_blank'>nuclearmeltd0wn101</a>. Powered by <a href='https://github.com/nuclearmeltd0wn101/musicsync-server' target='_blank'>MusicSync Server</a> version {{srvver}}</div>
 </body>
 </html>

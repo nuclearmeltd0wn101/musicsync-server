@@ -4,6 +4,7 @@
 	<meta generator="MSM/MusicSync">
 	<meta http-equiv="Content-Type" content="text/html">
 	<title>Edit audio - {{fsname}}</title>
+	<link rel="shortcut icon" href="/static/favicon.gif" type="image/x-icon">
 </head>
 <body>
 <style>
@@ -30,6 +31,12 @@ New lyrics:<br>
 <textarea rows="24" cols="42" name="lyrics">{{lyrics}}</textarea><br>
 <input type="submit" value="Modify audio" />
 </form>
+<h3>Additional song details:</h3>
+<table>
+<tr><td style='color: orange'>ID: </td><td>{{uid}}</td></tr>
+<tr><td style='color: orange'>Upload timestamp: </td><td>{{timestamp}}</td></tr>
+<tr><td style='color: orange'>File size: </td><td>{{size}} MB</td></tr>
+</table>
 <style>
 #bottomdiv{
  position: absolute;

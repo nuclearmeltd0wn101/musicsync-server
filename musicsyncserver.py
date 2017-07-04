@@ -1,14 +1,16 @@
 # -*- coding: utf-8 -*-
 dbPath='msync.db' # Path to database file
-version=170501 # Server version, don`t touch for proper functioning
+version=170704 # Server version, don`t touch for proper functioning
 print('MusicSync Server version '+str(version)+'\nCopyright (C) 2017 MelnikovSM')
-import pickle, os, sys, json, hashlib, random, string
+import pickle, os, sys, json, hashlib, random, string, time, mutagen
 import dblib
 from bottle import route, run, template, static_file, error, request, HTTPResponse, response, abort, hook
 from urllib2 import unquote
 from copy import copy
 from getpass import getpass
 from base64 import b64encode, b64decode
+from mutagen.id3 import ID3
+from mutagen.easyid3 import EasyID3
 reload(sys)  
 sys.setdefaultencoding('utf8')
 
@@ -211,13 +213,47 @@ def mainPage():
 		for alb in db['alist']:
 			links+=template(linktpl, link=os.path.join(db['settings']['httpdroot'], 'album', alb), name=alb, itemsCount=str(len(db['albums'][alb])))+'\n'
 	else: links='<p style="color: red">You don`t have access to view albums list.</p>'
+	if alvl<=db['settings']['permissions']['view']: artistsln='Or view audios by <a href="'+db['settings']['httpdroot']+'artists" target="_blank">artist</a> ('+str(len(db['artists']))+' total).<br />'
+	else: artistsln=''
 	if alvl<=db['settings']['permissions']['view']: search=genSearch('', False)
 	else: search='<p style="color: red">You don`t have access to use search feature.</p>'
 	wtext=''
 	for line in db['settings']['welcometext'].splitlines(): wtext+=line+'<br />'
-	return template(pagetpl, sname=db['settings']['servername'], res=os.path.join(db['settings']['httpdroot'], 'static/'), header=header, footer=footer, links=links, welcometext=welcomeback+'<br />'+wtext, search=search)
+	return template(pagetpl, sname=db['settings']['servername'], res=os.path.join(db['settings']['httpdroot'], 'static/'), header=header, footer=footer, links=links, welcometext=welcomeback+'<br />'+wtext, search=search, artistsln=artistsln)
 
+@route('/artists') # display all artists page
+def artistsIndexPg():
+	auth(db['settings']['permissions']['view'])
+	linktpl=open(os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])),'templates/artists.tpl'), 'r').read()
+	n=0
+	out='<table><tr><td><b>№</b></td><td><b>Artists</b> (<b style="color: orange">'+str(len(db['artists']))+'</b> <b>total</b>)</td></tr>'
+	for artist in db['artists']:
+		n+=1
+		out+='<tr><td>'+str(n)+'</td><td><a href="'+db['settings']['httpdroot']+'artists/'+artist[0]+'">'+artist[0]+' ('+str(artist[1])+')</a></td></tr>'
+	out+='<table>'
+	return template(linktpl, count=str(n), sname=db['settings']['servername'], artistslist=out, header=header, footer=footer)
 
+@route('/artists/<query>') # display songs by artist
+def searchFrontEnd(query):
+	auth(db['settings']['permissions']['view'], request.forms.get('token'))
+	query=unquote(query)
+	src=dblib.getAudios(db)[0]
+	result=[]
+	i=0
+	for audio in src:
+		if (query==audio['artist']):
+			result.append(i)
+			i+=1
+	audios=[]
+	for id in result: audios.append(src[id])
+	pagetpl=open(os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])),'templates/audioscatalog.tpl'), 'r').read()
+	if not len(audios)==0:
+		pllinks=genPlLinks()+'\n'+genSearch('', True, query)
+		a=UIgenPlayer(audios)
+	else: 
+		a='<br /><center><h2 style="color: white">Artist "'+query+'" not exist or have no audios, stored on this server :(</h2>\n'+genSearch('', False, query)+'</center>'
+		pllinks=genPlLinks()
+	return template(pagetpl, pgname=('Artist "'+query+'" audios ('+str(i)+') - '+db['settings']['servername']), content=a, title=db['settings']['servername'],res=os.path.join(db['settings']['httpdroot'], 'static/'), pllinks=pllinks, header=header, footer=footer)
 
 @route('/allAudios') # All audios
 def allAudiosDisplay():
@@ -463,10 +499,28 @@ def uploadAudio():
 			if not os.path.exists(db['settings']['musicdir']):
 				os.makedirs(db['settings']['musicdir'])
 			audioFile.save(os.path.join(db['settings']['musicdir'],fname))
+			if ((artist=='') and (title=='')):
+				try:
+					audio = ID3(os.path.join(db['settings']['musicdir'],fname))
+					db['audios'][0]['artist']=audio['TPE1'].text[0]
+					db['audios'][0]['title']=audio["TIT2"].text[0]
+				except: pass
+			elif artist=='': aritst = 'Unknown'
+			# Write ID3 tags
+			try:
+				try:
+					meta = EasyID3(os.path.join(db['settings']['musicdir'],fname))
+				except mutagen.id3.ID3NoHeaderError:
+					meta = mutagen.File(os.path.join(db['settings']['musicdir'],fname), easy=True)
+					meta.add_tags()
+				meta['artist'] = artist
+				meta['title'] = title
+				meta.save(os.path.join(db['settings']['musicdir'],fname))
+			except: print('Warning: Unable to update ID3 tags for song id '+fname)
 			dblib.saveDB(dbPath, db)
 			return '<h1>Success!</h1><script>location.replace(document.referrer);</script>'
 		else: return HTTPResponse(status=500, body='<h1>Upload error at server side :(</h1><script>location.replace(document.referrer);</script>')
-	except AttributeError: return HTTPResponse(status=424, body='<h1>Error: No file pushed!</h1><script>location.replace(document.referrer);</script>')
+	except SyntaxError: return HTTPResponse(status=424, body='<h1>Error: No file pushed!</h1><script>location.replace(document.referrer);</script>')
 
 @route('/control/delAudio', method='POST') # Delete audio
 def delAudio():
@@ -492,6 +546,18 @@ def modAudio():
 		title = request.forms.get('title')
 		lyrics = request.forms.get('lyrics')
 		if dblib.modifyAudio(db, id, artist, title, lyrics):
+			# Write ID3 tags
+			try:
+				fname=db['audios'][id]['filename']
+				try:
+					meta = EasyID3(os.path.join(db['settings']['musicdir'],fname))
+				except mutagen.id3.ID3NoHeaderError:
+					meta = mutagen.File(os.path.join(db['settings']['musicdir'],fname), easy=True)
+					meta.add_tags()
+				meta['artist'] = artist
+				meta['title'] = title
+				meta.save(os.path.join(db['settings']['musicdir'],fname))
+			except: print('Warning: Unable to update ID3 tags for song id '+fname)
 			dblib.saveDB(dbPath, db)
 			return '<h1>Success!</h1><script>location.replace(document.referrer);</script>'
 		else: return HTTPResponse(status=404, body='<h1>Error: Audio with specified ID not found</h1><script>location.replace(document.referrer);</script>')
@@ -563,6 +629,18 @@ def albumDel():
 			return '<h1>Success!</h1><script>location.replace(document.referrer);</script>'
 		else: return HTTPResponse(status=404, body='<h1>Error: Audio with specified ID not found</h1><script>location.replace(document.referrer);</script>')
 	except ValueError: return HTTPResponse(status=424, body='<h1>Error: Incorrect ID field value</h1><script>location.replace(document.referrer);</script>')
+
+@route('/control/sortAlbum', method='POST') # Delete audio from album
+def albumSort():
+	try:
+		descending = int(request.forms.get('descending'))
+	except: descending=1
+	try:
+		album = request.forms.get('album')
+		db['albums'][album].sort(reverse=descending)
+		dblib.saveDB(dbPath, db)
+		return '<h1>Success!</h1><script>location.replace(document.referrer);</script>'
+	except: return HTTPResponse(status=417, body='<h1>Error: Empty \"Album\" field!</h1><script>location.replace(document.referrer);</script>')
 
 @route('/control/moveAlbum', method='POST') # Move album higher/below in list
 def moveAlbum():
@@ -671,7 +749,7 @@ def controlStatus():
 	alvl=auth(db['settings']['permissions']['edit'])
 	if alvl<=db['settings']['permissions']['system']: dbrel='<form action="'+db['settings']['httpdroot']+'control/reload" method="post" enctype="multipart/form-data"><input type="submit" value="Reload DB from disk" /></form>'
 	else: dbrel=''
-	return template(open(os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])),'templates/status.tpl'), 'r').read(), srvver=version, sname=db['settings']['servername'], ta=str(len(db['audios'])), albst=str(len(db['alist'])), asz=str(float(get_size(db['settings']['musicdir'])*10/1024/1024)/10), dsize=str(float(os.path.getsize(dbPath)*10/1024)/10), dbrel=dbrel, root=db['settings']['httpdroot'])
+	return template(open(os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])),'templates/status.tpl'), 'r').read(), srvver=version, sname=db['settings']['servername'], ta=str(len(db['audios'])), albst=str(len(db['alist'])), artst=str(len(db['artists'])), asz=str(float(get_size(db['settings']['musicdir'])*10/1024/1024)/10), dsize=str(float(os.path.getsize(dbPath)*10/1024)/10), dbrel=dbrel, root=db['settings']['httpdroot'])
 
 
 @route('/control/audios')
@@ -691,11 +769,14 @@ def cEditAudio(id):
 	try:
 		pra=dblib.getAudios(db)[0][id]['artist']
 		prt=dblib.getAudios(db)[0][id]['title']
+		uid=dblib.getAudios(db)[0][id]['filename']
+		ts=time.strftime('%Y/%m/%d %H:%M:%S', time.localtime(int(int(uid)/10000)))
+		sz=str(float(os.path.getsize(os.path.join(db['settings']['musicdir'], uid))*10/1024/1024)/10)
 		try: prl=dblib.getAudios(db)[0][id]['lyrics']
 		except KeyError:
 			dblib.getAudios(db)[0][id]['lyrics']=''
 			prl=''
-		return template(open(os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])),'templates/controlEditAudio.tpl'), 'r').read(), cproot=os.path.join(db['settings']['httpdroot'], 'control/audios'), fsname=db['settings']['servername'], pra=pra, prt=prt, purl=os.path.join(db['settings']['httpdroot'], 'control/modifyAudio'), id=str(id), footer=footer, lyrics=prl)
+		return template(open(os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])),'templates/controlEditAudio.tpl'), 'r').read(), cproot=os.path.join(db['settings']['httpdroot'], 'control/audios'), fsname=db['settings']['servername'], pra=pra, prt=prt, purl=os.path.join(db['settings']['httpdroot'], 'control/modifyAudio'), id=str(id), footer=footer, lyrics=prl, timestamp=ts, uid=uid, size=sz)
 	except IndexError: return HTTPResponse(status=404, body='<h1>Error: Audio with specified ID not found</h1><script>location.replace(document.referrer);</script>')
 	
 @route('/control/albums')

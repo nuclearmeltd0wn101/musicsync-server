@@ -4,6 +4,7 @@
 	<meta generator="MSM/MusicSync">
 	<meta http-equiv="Content-Type" content="text/html">
 	<title>{{pgname}}</title>
+	<link rel="shortcut icon" href="/static/favicon.gif" type="image/x-icon">
 	
 	<link rel="stylesheet" type="text/css" href="{{res}}player/css/jquery.jscrollpane.css" media="all" />
 	<link rel="stylesheet" type="text/css" href="{{res}}player/css/jquery.selectbox.css" />

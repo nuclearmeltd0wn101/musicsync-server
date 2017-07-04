@@ -15,7 +15,7 @@ newDBStruct={
 	'musicdir': 'audios', # Default audios dir
 	'httpdroot': 'http://localhost:8084/', # Default portal root URL
 	'header': '''{{servername}}''', # Default header HTML
-	'footer': '''&copy 2017 <a style="color: orange" href="https://melnikovsm.tk" target="_blank">MelnikovSM</a>. Powered by <a style="color: orange" href='https://github.com/MelnikovSM/musicsync-server' target='_blank'>MusicSync Server</a> version {{srvversion}}''', # Default footer HTML
+	'footer': '''&copy 2017 <a style="color: orange" href="https://blog.nm101.tk" target="_blank">nuclearmeltd0wn101</a>. Powered by <a style="color: orange" href='https://github.com/nuclearmeltd0wn101/musicsync-server' target='_blank'>MusicSync Server</a> version {{srvversion}}''', # Default footer HTML
 	'plUrl': '/playlist.m3u8', 'plsUrl': '/pl/<album>.m3u8', # URL to M3U playlists
 	'welcometext': '''Welcome to new MusicSync Server installation!
 This text may be changed at "Appearance" realm of control panel.
@@ -29,10 +29,22 @@ Please choose album below to view audio collection.''', # Default home page welc
 		'system': 0 # WebIf and WebAPI access to server control and everything, listed higher (default: administrators only)
 	}
 	},
-	'accounts': {}
+	'accounts': {}, # accounts
+	'artists': [] # artists & theirs songs count
 }
 
+def postHandle(db, state):
+	artists={}	
+	for audio in db['audios']:
+		if not ('lyrics' in audio): audio['lyrics']=''
+		else: audio['lyrics']=audio['lyrics'].strip()
+		if not (audio['artist'] in artists): artists[audio['artist']]=1
+		else: artists[audio['artist']]+=1
+	db['artists']=sorted(artists.items(), key=lambda x: x[1], reverse=True)
+
+
 def saveDB(dbPath,db):
+	postHandle(db, 1)
 	output = open(dbPath, 'wb')
 	pickle.dump(db, output)
 	output.close()
@@ -40,6 +52,7 @@ def loadDB(dbPath):
 	input = open(dbPath, 'rb')
 	db = pickle.load(input)
 	input.close()
+	postHandle(db, 0)
 	return db
 
 def fname2id(db, fname):
@@ -137,6 +150,7 @@ def regAudio(db, artist, title):
 		db['audios'][0]['filename']=str(int(time()*10000))
 		db['audios'][0]['artist']=artist
 		db['audios'][0]['title']=title
+		db['audios'][0]['lyrics']=''
 		return db['audios'][0]['filename']
 	except: return False
 
@@ -182,6 +196,6 @@ def searchAudio(audios, string):
 	candidates=[]
 	i=0
 	for audio in audios:
-		if (string in (audio['artist']+' - '+audio['title']).lower() ): candidates.append(i)
+		if (string.lower() in (audio['artist']+' - '+audio['title']).lower() ): candidates.append(i)
 		i+=1
 	return candidates

@@ -1,5 +1,16 @@
 MusicSync Server changelog:
 
+04 Jul 2017 [20170704]:
+
+* Added audio additional information (song ID, upload timestamp, mp3 size) display at audio edit page
+* Server will attempt to write MP3 ID3 tags to audio after upload or when editing audio
+* Added audios artists indexing and display at /artists page by artist`s audios descending
+* Added (by add time) ascending/descending album content sort
+
+28 Jun 2017 [20170628]:
+
+* Server will attempt to read MP3 ID3 tags from uploaded audio if you leave 'artist' or 'title' fields unfilled [now server requires mutagen module from pip]
+
 1 May 2017 [20170501]:
 
 * Audios & album control pages migrated to JS entries load

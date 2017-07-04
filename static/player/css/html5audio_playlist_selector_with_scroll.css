@@ -27,7 +27,7 @@ body {
 	position:relative;
 	min-width:340px;
 	max-width:100%;
-	height:-webkit-calc(100% - 161px); /* experiment with "- Npx" value if want change player fit on page*/
+	height:-webkit-calc(100% - 161px); /* experiment with 200 value if want change player fit on page*/
 	top:14px;
 	clear:left;
 }

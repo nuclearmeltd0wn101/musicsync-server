@@ -6,7 +6,7 @@
 * Simple and powerful access control system
 * HTTP GET/POST & JSON based API for custom applications interraction
 
-Dependenices: Python 2.7 with standard modules + bottle and paste
+Dependenices: Python 2.7 with standard modules + bottle, paste & mutagen
 
 # Screenshots:
 
