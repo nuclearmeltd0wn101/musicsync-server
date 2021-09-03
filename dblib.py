@@ -38,8 +38,9 @@ def postHandle(db, state):
 	for audio in db['audios']:
 		if not ('lyrics' in audio): audio['lyrics']=''
 		else: audio['lyrics']=audio['lyrics'].strip()
-		if not (audio['artist'] in artists): artists[audio['artist']]=1
-		else: artists[audio['artist']]+=1
+		artist = audio['artist']
+		if not (artist in artists): artists[artist]=1
+		else: artists[artist]+=1
 	db['artists']=sorted(artists.items(), key=lambda x: x[1], reverse=True)
 
 

@@ -1,5 +1,11 @@
 MusicSync Server changelog:
 
+25 Aug 2021 [20210825]:
+
+* Fixed ID3 tags read
+* Added writing file name to title if unable to read ID3 tags
+* Minor fixes
+
 04 Jul 2017 [20170704]:
 
 * Added audio additional information (song ID, upload timestamp, mp3 size) display at audio edit page

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 dbPath='msync.db' # Path to database file
-version=170704 # Server version, don`t touch for proper functioning
-print('MusicSync Server version '+str(version)+'\nCopyright (C) 2017 MelnikovSM')
+version=210825 # Server version, don`t touch for proper functioning
+print('MusicSync Server version '+str(version)+'\nCopyright (C) 2021 MelnikovSM')
 import pickle, os, sys, json, hashlib, random, string, time, mutagen
 import dblib
 from bottle import route, run, template, static_file, error, request, HTTPResponse, response, abort, hook
@@ -10,6 +10,7 @@ from copy import copy
 from getpass import getpass
 from base64 import b64encode, b64decode
 from mutagen.id3 import ID3
+from mutagen.mp3 import MP3
 from mutagen.easyid3 import EasyID3
 reload(sys)  
 sys.setdefaultencoding('utf8')
@@ -349,7 +350,7 @@ def server_audios(num):
 		id=dblib.fname2id(db, int(num))
 		if int(id)<0: return HTTPResponse(status=404, body='<h1>Error: Audio not found!</h1>')
 		else:
-			return static_file(db['audios'][id]['filename'], root=db['settings']['musicdir'])
+			return static_file(db['audios'][id]['filename'], root=db['settings']['musicdir'], mimetype='audio/mpeg')
 	except ValueError: return HTTPResponse(status=424, body='<h1>Error: Incorrect audio ID!</h1>')
 
 @route('/getAudio', method='POST') # POST audio fetch
@@ -359,7 +360,7 @@ def getAudioPost():
 		id=dblib.fname2id(db, int(request.forms.get('id')))
 		if int(id)<0: return HTTPResponse(status=404, body='<h1>Error: Audio not found!</h1>')
 		else:
-			return static_file(db['audios'][id]['filename'], root=db['settings']['musicdir'])
+			return static_file(db['audios'][id]['filename'], root=db['settings']['musicdir'], mimetype='audio/mpeg')
 	except: return HTTPResponse(status=424, body='<h1>Error: Incorrect audio ID!</h1>')
 	
 @route('/getAudio/<num:int>/<token>') # Audios fetching using token
@@ -369,7 +370,7 @@ def server_audios(num, token):
 		id=dblib.fname2id(db, int(num))
 		if int(id)<0: return HTTPResponse(status=404, body='<h1>Error: Audio not found!</h1>')
 		else:
-			return static_file(db['audios'][id]['filename'], root=db['settings']['musicdir'])
+			return static_file(db['audios'][id]['filename'], root=db['settings']['musicdir'], mimetype='audio/mpeg')
 	except ValueError: return HTTPResponse(status=424, body='<h1>Error: Incorrect audio ID!</h1>')
 
 @route('/getAudio/lyrics') # Placeholder for case of no audio ID specified
@@ -495,28 +496,41 @@ def uploadAudio():
 		name, ext = os.path.splitext(audioFile.filename)
 		fname=dblib.regAudio(db, artist, title)
 		if fname<>False:
-			save_path = "/tmp/{category}"
 			if not os.path.exists(db['settings']['musicdir']):
 				os.makedirs(db['settings']['musicdir'])
-			audioFile.save(os.path.join(db['settings']['musicdir'],fname))
+
+			file_path = os.path.join(db['settings']['musicdir'],fname)
+			audioFile.save(file_path)
 			if ((artist=='') and (title=='')):
+				useFilename = False
 				try:
-					audio = ID3(os.path.join(db['settings']['musicdir'],fname))
-					db['audios'][0]['artist']=audio['TPE1'].text[0]
-					db['audios'][0]['title']=audio["TIT2"].text[0]
-				except: pass
-			elif artist=='': aritst = 'Unknown'
+					audio = MP3(file_path, ID3=EasyID3)
+					db['audios'][0]['artist'] = ' '.join(audio['artist'])
+					db['audios'][0]['title'] = ' '.join(audio["title"])
+				except Exception as e:
+					print("tag read error while import:" + str(e))
+					useFilename = True
+
+				if useFilename:
+					db['audios'][0]['artist'] = 'Unknown'
+					db['audios'][0]['title'] = ' '.join(name.split('-'))
+
+			elif artist=='':
+				db['audios'][0]['artist'] = 'Unknown'
+				db['audios'][0]['title'] = title
 			# Write ID3 tags
 			try:
+				meta = MP3(file_path, ID3=EasyID3)
 				try:
-					meta = EasyID3(os.path.join(db['settings']['musicdir'],fname))
-				except mutagen.id3.ID3NoHeaderError:
-					meta = mutagen.File(os.path.join(db['settings']['musicdir'],fname), easy=True)
-					meta.add_tags()
-				meta['artist'] = artist
-				meta['title'] = title
-				meta.save(os.path.join(db['settings']['musicdir'],fname))
-			except: print('Warning: Unable to update ID3 tags for song id '+fname)
+					meta.add_tags(ID3 = EasyID3)
+				except: pass
+					
+				meta['artist'] = db['audios'][0]['artist']
+				meta['title'] = db['audios'][0]['title']
+				meta.save(file_path)
+			except Exception as e:
+				print('Warning: Unable to update ID3 tags for song id ' + fname)
+				print(e)
 			dblib.saveDB(dbPath, db)
 			return '<h1>Success!</h1><script>location.replace(document.referrer);</script>'
 		else: return HTTPResponse(status=500, body='<h1>Upload error at server side :(</h1><script>location.replace(document.referrer);</script>')
@@ -548,16 +562,20 @@ def modAudio():
 		if dblib.modifyAudio(db, id, artist, title, lyrics):
 			# Write ID3 tags
 			try:
-				fname=db['audios'][id]['filename']
+				audio = db['audios'][id]
+				fname=audio['filename']
+				file_path = os.path.join(db['settings']['musicdir'], fname)
 				try:
-					meta = EasyID3(os.path.join(db['settings']['musicdir'],fname))
-				except mutagen.id3.ID3NoHeaderError:
-					meta = mutagen.File(os.path.join(db['settings']['musicdir'],fname), easy=True)
-					meta.add_tags()
-				meta['artist'] = artist
-				meta['title'] = title
-				meta.save(os.path.join(db['settings']['musicdir'],fname))
-			except: print('Warning: Unable to update ID3 tags for song id '+fname)
+					meta = MP3(file_path, ID3=EasyID3)
+					try:
+						meta.add_tags(ID3 = EasyID3)
+					except: pass
+						
+					meta['artist'] = audio['artist']
+					meta['title'] = audio['title']
+					meta.save(file_path)
+				except: pass
+			except: print('Warning: Unable to update ID3 tags for song id ' + fname)
 			dblib.saveDB(dbPath, db)
 			return '<h1>Success!</h1><script>location.replace(document.referrer);</script>'
 		else: return HTTPResponse(status=404, body='<h1>Error: Audio with specified ID not found</h1><script>location.replace(document.referrer);</script>')
@@ -1064,5 +1082,4 @@ def mistake(code):
 
 if __name__ == "__main__":
 	print('Starting up..')
-	run(host=db['settings']['httpdip'], 
-port=int(db['settings']['httpdport']), server='paste')
+	run(host=db['settings']['httpdip'], port=int(db['settings']['httpdport']), server='paste')
